@@ -1,7 +1,7 @@
 {
   "name": "blue-team-platform-server",
-  "version": "2.0.0",
-  "description": "Blue Team Lab Platform - Phase 2",
+  "version": "3.0.0",
+  "description": "Blue Team Lab Platform - Phase 3",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -17,6 +17,7 @@
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
     "dockerode": "^4.0.0",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "socket.io": "^4.7.2"
   }
 }
