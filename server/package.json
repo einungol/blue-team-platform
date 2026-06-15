@@ -1,17 +1,22 @@
 {
-  "name": "blue-team-terminal-server",
-  "version": "1.0.0",
-  "description": "WebSocket terminal server for Blue Team Lab Platform",
+  "name": "blue-team-platform-server",
+  "version": "2.0.0",
+  "description": "Blue Team Lab Platform - Phase 2",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "node index.js"
+    "dev": "nodemon index.js"
   },
   "dependencies": {
     "express": "^4.18.2",
     "ws": "^8.14.2",
     "node-pty": "^1.0.0",
     "uuid": "^9.0.0",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "better-sqlite3": "^9.2.2",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "dockerode": "^4.0.0",
+    "cors": "^2.8.5"
   }
 }

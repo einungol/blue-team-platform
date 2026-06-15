@@ -3,30 +3,116 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Blue Team Lab - Terminal</title>
+  <title>Blue Team Lab Platform</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
       --primary: #00d4aa;
       --secondary: #1a1a2e;
       --bg: #0a0a12;
-      --terminal-bg: #1e1e2e;
+      --card-bg: #16162a;
+      --text: #e0e0e0;
+      --text-muted: #888;
     }
 
     body {
       font-family: 'Segoe UI', system-ui, sans-serif;
       background: var(--bg);
-      color: #e0e0e0;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
+      color: var(--text);
+      min-height: 100vh;
     }
+
+    /* Auth Screens */
+    .auth-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .auth-box {
+      background: var(--card-bg);
+      padding: 40px;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 400px;
+      border: 1px solid #2a2a4a;
+    }
+
+    .auth-box h1 {
+      color: var(--primary);
+      margin-bottom: 10px;
+      font-size: 1.8rem;
+    }
+
+    .auth-box p {
+      color: var(--text-muted);
+      margin-bottom: 30px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px 16px;
+      background: var(--bg);
+      border: 1px solid #333;
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 1rem;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: var(--bg);
+    }
+
+    .btn-primary:hover {
+      background: #00ff88;
+    }
+
+    .btn-link {
+      background: none;
+      color: var(--primary);
+      margin-top: 15px;
+    }
+
+    .btn-link:hover {
+      text-decoration: underline;
+    }
+
+    /* Main App */
+    .app { display: none; }
+
+    .app.active { display: block; }
 
     /* Header */
     header {
@@ -38,123 +124,246 @@
       border-bottom: 2px solid var(--primary);
     }
 
-    .logo {
-      font-size: 1.4rem;
-      font-weight: bold;
+    .logo { font-size: 1.4rem; font-weight: bold; color: var(--primary); }
+
+    .user-menu {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .points {
+      background: #2a2a4a;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.9rem;
       color: var(--primary);
     }
 
-    .status {
+    .logout-btn {
+      background: none;
+      border: 1px solid #444;
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    /* Navigation */
+    nav {
+      background: var(--card-bg);
+      padding: 0 25px;
       display: flex;
-      align-items: center;
-      gap: 10px;
+      gap: 5px;
+      border-bottom: 1px solid #2a2a4a;
+    }
+
+    nav button {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      padding: 15px 20px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      border-bottom: 2px solid transparent;
+    }
+
+    nav button.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    /* Content */
+    .content { padding: 25px; }
+
+    /* Labs Grid */
+    .labs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .lab-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid #2a2a4a;
+      transition: all 0.2s;
+    }
+
+    .lab-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-3px);
+    }
+
+    .lab-card.completed {
+      border-color: var(--primary);
+      opacity: 0.7;
+    }
+
+    .lab-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+
+    .lab-name { font-size: 1.1rem; font-weight: 600; }
+
+    .lab-difficulty {
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 12px;
+      text-transform: uppercase;
+    }
+
+    .difficulty-easy { background: #a6e3a1; color: #1a1a2e; }
+    .difficulty-medium { background: #f9e2af; color: #1a1a2e; }
+    .difficulty-hard { background: #f38ba8; color: #1a1a2e; }
+
+    .lab-description {
+      color: var(--text-muted);
       font-size: 0.9rem;
+      margin: 10px 0;
+      line-height: 1.5;
     }
 
-    .status-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: #ff4444;
-      animation: pulse 2s infinite;
+    .lab-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid #2a2a4a;
     }
 
-    .status-dot.connected {
-      background: #00ff88;
+    .lab-points {
+      color: var(--primary);
+      font-weight: 600;
     }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
+    .lab-btn {
+      background: var(--primary);
+      color: var(--bg);
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
     }
 
-    /* Terminal Container */
+    .lab-btn:disabled {
+      background: #444;
+      cursor: not-allowed;
+    }
+
+    /* Terminal View */
+    .terminal-view { display: none; height: calc(100vh - 180px); }
+
+    .terminal-view.active { display: flex; flex-direction: column; }
+
     #terminal-container {
       flex: 1;
-      padding: 15px;
-      background: var(--terminal-bg);
+      background: #1e1e2e;
+      border-radius: 8px;
       overflow: hidden;
     }
 
-    .xterm {
-      height: 100%;
-      padding: 10px;
-    }
-
-    .xterm-viewport {
-      overflow-y: auto !important;
-    }
-
-    /* Control Bar */
-    .controls {
-      background: var(--secondary);
-      padding: 12px 25px;
+    .terminal-controls {
       display: flex;
-      gap: 12px;
-      border-top: 1px solid #333;
+      gap: 10px;
+      margin-top: 15px;
     }
 
-    .btn {
+    .terminal-controls button {
       padding: 10px 20px;
       border: none;
       border-radius: 6px;
       cursor: pointer;
       font-weight: 600;
-      font-size: 0.9rem;
-      transition: all 0.2s ease;
     }
 
-    .btn-primary {
-      background: var(--primary);
-      color: var(--bg);
+    .btn-danger { background: #ff4444; color: white; }
+    .btn-secondary { background: #333; color: white; }
+
+    /* Flag Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
     }
 
-    .btn-primary:hover {
-      background: #00ff88;
-      transform: translateY(-2px);
+    .modal.active { display: flex; }
+
+    .modal-content {
+      background: var(--card-bg);
+      padding: 30px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 400px;
     }
 
-    .btn-danger {
-      background: #ff4444;
-      color: white;
+    .modal h2 { margin-bottom: 20px; color: var(--primary); }
+
+    .modal input {
+      width: 100%;
+      padding: 12px;
+      background: var(--bg);
+      border: 1px solid #333;
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 1rem;
+      margin-bottom: 15px;
     }
 
-    .btn-danger:hover {
-      background: #ff6666;
-    }
-
-    .btn-secondary {
-      background: #333;
-      color: white;
-    }
-
-    .btn-secondary:hover {
-      background: #444;
-    }
-
-    /* Info Panel */
-    .info-panel {
-      background: #252535;
-      padding: 15px 25px;
-      font-size: 0.85rem;
-      color: #888;
+    .modal-buttons {
       display: flex;
-      justify-content: space-between;
+      gap: 10px;
     }
 
-    .info-panel span {
+    .modal-buttons button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Leaderboard */
+    .leaderboard {
+      background: var(--card-bg);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .leaderboard table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .leaderboard th, .leaderboard td {
+      padding: 15px 20px;
+      text-align: left;
+    }
+
+    .leaderboard th {
+      background: var(--secondary);
       color: var(--primary);
     }
 
-    /* Terminal Selection */
-    .terminal-select {
-      background: #333;
-      color: white;
-      padding: 8px 12px;
-      border: none;
-      border-radius: 4px;
-      font-size: 0.9rem;
-    }
+    .leaderboard tr:nth-child(even) { background: #1f1f35; }
+
+    .rank-1 { color: #ffd700; }
+    .rank-2 { color: #c0c0c0; }
+    .rank-3 { color: #cd7f32; }
 
     /* Loading */
     .loading {
@@ -165,232 +374,369 @@
       height: 100%;
       background: var(--bg);
       display: flex;
-      justify-content: center;
       align-items: center;
-      z-index: 1000;
+      justify-content: center;
+      z-index: 2000;
     }
 
-    .loading.hidden {
-      display: none;
-    }
+    .loading.hidden { display: none; }
 
-    .loading-text {
-      font-size: 1.2rem;
-      color: var(--primary);
-      animation: pulse 1.5s infinite;
-    }
+    .loading-text { color: var(--primary); font-size: 1.2rem; }
   </style>
 </head>
 <body>
   <div class="loading" id="loading">
-    <div class="loading-text">Connecting to terminal...</div>
+    <div class="loading-text">Loading...</div>
   </div>
 
-  <header>
-    <div class="logo">🎯 Blue Team Lab Terminal</div>
-    <div class="status">
-      <div class="status-dot" id="status-dot"></div>
-      <span id="status-text">Disconnected</span>
-    </div>
-  </header>
-
-  <div id="terminal-container"></div>
-
-  <div class="info-panel">
-    <div>Shell: <span id="shell-type">bash</span></div>
-    <div>Session: <span id="session-id">-</span></div>
-    <div>
-      <select id="shell-select" class="terminal-select">
-        <option value="bash">Bash</option>
-        <option value="powershell">PowerShell</option>
-        <option value="zsh">Zsh</option>
-      </select>
-      <button class="btn btn-primary" id="new-terminal-btn">New Terminal</button>
+  <!-- Login Screen -->
+  <div class="auth-screen" id="login-screen">
+    <div class="auth-box">
+      <h1>🎯 Blue Team Lab</h1>
+      <p>Sign in to access labs and terminal</p>
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="login-username" placeholder="Enter username">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="Enter password">
+      </div>
+      <button class="btn btn-primary" onclick="login()">Sign In</button>
+      <button class="btn btn-link" onclick="showRegister()">Create an account</button>
     </div>
   </div>
 
-  <div class="controls">
-    <button class="btn btn-secondary" id="clear-btn">Clear</button>
-    <button class="btn btn-secondary" id="reset-btn">Reset</button>
-    <button class="btn btn-danger" id="close-btn">Close Session</button>
+  <!-- Register Screen -->
+  <div class="auth-screen" id="register-screen" style="display:none;">
+    <div class="auth-box">
+      <h1>🎯 Blue Team Lab</h1>
+      <p>Create your account</p>
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="reg-username" placeholder="Choose username">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="reg-email" placeholder="Enter email">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="reg-password" placeholder="Choose password">
+      </div>
+      <button class="btn btn-primary" onclick="register()">Create Account</button>
+      <button class="btn btn-link" onclick="showLogin()">Already have an account?</button>
+    </div>
+  </div>
+
+  <!-- Main App -->
+  <div class="app" id="app">
+    <header>
+      <div class="logo">🎯 Blue Team Lab Platform</div>
+      <div class="user-menu">
+        <div class="points" id="user-points">0 pts</div>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+      </div>
+    </header>
+
+    <nav>
+      <button class="active" onclick="showTab('labs')">Labs</button>
+      <button onclick="showTab('terminal')">Terminal</button>
+      <button onclick="showTab('leaderboard')">Leaderboard</button>
+    </nav>
+
+    <!-- Labs Tab -->
+    <div class="content" id="labs-tab">
+      <div class="labs-grid" id="labs-grid"></div>
+    </div>
+
+    <!-- Terminal Tab -->
+    <div class="content terminal-view" id="terminal-tab">
+      <div id="terminal-container"></div>
+      <div class="terminal-controls">
+        <button class="btn-secondary" onclick="clearTerminal()">Clear</button>
+        <button class="btn-secondary" onclick="resetTerminal()">Reset</button>
+        <button class="btn-danger" onclick="closeTerminal()">Close</button>
+      </div>
+    </div>
+
+    <!-- Leaderboard Tab -->
+    <div class="content" id="leaderboard-tab">
+      <div class="leaderboard">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Username</th>
+              <th>Points</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboard-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Flag Modal -->
+  <div class="modal" id="flag-modal">
+    <div class="modal-content">
+      <h2>Submit Flag</h2>
+      <p id="flag-lab-name" style="color: var(--text-muted); margin-bottom: 15px;"></p>
+      <input type="text" id="flag-input" placeholder="BLUE{flag_here}">
+      <div class="modal-buttons">
+        <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn-primary" onclick="submitFlag()">Submit</button>
+      </div>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-search@0.13.0/lib/xterm-addon-search.min.js"></script>
-
   <script>
     const API_URL = 'http://localhost:3001';
     const WS_URL = 'ws://localhost:8080';
 
+    let token = localStorage.getItem('token');
+    let user = JSON.parse(localStorage.getItem('user') || 'null');
     let terminal = null;
-    let fitAddon = null;
     let ws = null;
-    let currentTermId = null;
+    let currentLabId = null;
 
-    // Initialize terminal
-    function initTerminal() {
+    // Check auth
+    if (token && user) {
+      showApp();
+    } else {
+      document.getElementById('loading').classList.add('hidden');
+    }
+
+    // Auth functions
+    async function login() {
+      const username = document.getElementById('login-username').value;
+      const password = document.getElementById('login-password').value;
+
+      try {
+        const res = await fetch(`${API_URL}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          token = data.token;
+          user = data.user;
+          localStorage.setItem('token', token);
+          localStorage.setItem('user', JSON.stringify(user));
+          showApp();
+        } else {
+          alert(data.error);
+        }
+      } catch (e) {
+        alert('Connection failed. Is server running?');
+      }
+    }
+
+    async function register() {
+      const username = document.getElementById('reg-username').value;
+      const email = document.getElementById('reg-email').value;
+      const password = document.getElementById('reg-password').value;
+
+      try {
+        const res = await fetch(`${API_URL}/api/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, email, password })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          token = data.token;
+          user = data.user;
+          localStorage.setItem('token', token);
+          localStorage.setItem('user', JSON.stringify(user));
+          showApp();
+        } else {
+          alert(data.error);
+        }
+      } catch (e) {
+        alert('Connection failed. Is server running?');
+      }
+    }
+
+    function showLogin() {
+      document.getElementById('login-screen').style.display = 'flex';
+      document.getElementById('register-screen').style.display = 'none';
+    }
+
+    function showRegister() {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('register-screen').style.display = 'flex';
+    }
+
+    function logout() {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      token = null;
+      user = null;
+      location.reload();
+    }
+
+    function showApp() {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('register-screen').style.display = 'none';
+      document.getElementById('app').classList.add('active');
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('user-points').textContent = user.points + ' pts';
+      loadLabs();
+      loadLeaderboard();
+    }
+
+    // Navigation
+    function showTab(tab) {
+      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+
+      document.getElementById('labs-tab').style.display = 'none';
+      document.getElementById('terminal-tab').classList.remove('active');
+      document.getElementById('leaderboard-tab').style.display = 'none';
+
+      if (tab === 'labs') document.getElementById('labs-tab').style.display = 'block';
+      if (tab === 'terminal') document.getElementById('terminal-tab').classList.add('active');
+      if (tab === 'leaderboard') document.getElementById('leaderboard-tab').style.display = 'block';
+    }
+
+    // Load Labs
+    async function loadLabs() {
+      const res = await fetch(`${API_URL}/api/labs`);
+      const labs = await res.json();
+
+      // Get user progress
+      const progressRes = await fetch(`${API_URL}/api/labs/progress`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const progress = await progressRes.json();
+      const completedLabs = progress.filter(p => p.completed).map(p => p.lab_id);
+
+      const grid = document.getElementById('labs-grid');
+      grid.innerHTML = labs.map(lab => `
+        <div class="lab-card ${completedLabs.includes(lab.id) ? 'completed' : ''}">
+          <div class="lab-header">
+            <span class="lab-name">${lab.name}</span>
+            <span class="lab-difficulty difficulty-${lab.difficulty}">${lab.difficulty}</span>
+          </div>
+          <p class="lab-description">${lab.description}</p>
+          <div class="lab-footer">
+            <span class="lab-points">${lab.points} pts</span>
+            <button class="lab-btn" onclick="startLab(${lab.id})" ${completedLabs.includes(lab.id) ? 'disabled' : ''}>
+              ${completedLabs.includes(lab.id) ? 'Completed' : 'Start Lab'}
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function loadLeaderboard() {
+      const res = await fetch(`${API_URL}/api/users/leaderboard`);
+      const users = await res.json();
+
+      document.getElementById('leaderboard-body').innerHTML = users.map((u, i) => `
+        <tr>
+          <td class="rank-${i + 1}">${i + 1}</td>
+          <td>${u.username}</td>
+          <td>${u.points}</td>
+        </tr>
+      `).join('');
+    }
+
+    // Lab functions
+    async function startLab(labId) {
+      currentLabId = labId;
+
+      // Open terminal
+      showTab('terminal');
+      document.querySelectorAll('nav button')[1].classList.add('active');
+      document.getElementById('labs-tab').style.display = 'none';
+      document.getElementById('terminal-tab').classList.add('active');
+      document.getElementById('leaderboard-tab').style.display = 'none';
+
+      initTerminal(labId);
+    }
+
+    function initTerminal(labId) {
+      if (terminal) terminal.dispose();
+
       terminal = new Terminal({
         cursorBlink: true,
         fontSize: 14,
-        fontFamily: '"Cascadia Code", "Fira Code", monospace',
+        fontFamily: '"Cascadia Code", monospace',
         theme: {
           background: '#1e1e2e',
-          foreground: '#cdd6f4',
-          cursor: '#f5e0dc',
-          selectionBackground: '#45475a',
-          black: '#45475a',
-          red: '#f38ba8',
-          green: '#a6e3a1',
-          yellow: '#f9e2af',
-          blue: '#89b4fa',
-          magenta: '#f5c2e7',
-          cyan: '#94e2d5',
-          white: '#bac2de',
-          brightBlack: '#585b70',
-          brightRed: '#f38ba8',
-          brightGreen: '#a6e3a1',
-          brightYellow: '#f9e2af',
-          brightBlue: '#89b4fa',
-          brightMagenta: '#f5c2e7',
-          brightCyan: '#94e2d5',
-          brightWhite: '#a6adc8'
+          foreground: '#cdd6f4'
         }
       });
 
-      fitAddon = new FitAddon();
+      const fitAddon = new FitAddon();
       terminal.loadAddon(fitAddon);
-
-      const webLinksAddon = new WebLinksAddon();
-      terminal.loadAddon(webLinksAddon);
-
-      const searchAddon = new SearchAddon();
-      terminal.loadAddon(searchAddon);
-
       terminal.open(document.getElementById('terminal-container'));
       fitAddon.fit();
 
-      // Handle resize
-      window.addEventListener('resize', () => {
-        fitAddon.fit();
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          // Send resize to server if needed
-        }
+      // Create terminal
+      fetch(`${API_URL}/api/terminals`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ labId, cols: terminal.cols, rows: terminal.rows })
+      })
+      .then(r => r.json())
+      .then(data => {
+        ws = new WebSocket(`${WS_URL}?token=${token}&id=${data.id}`);
+        ws.onmessage = e => terminal.write(e.data);
+        terminal.onData d => ws.send(d);
+      })
+      .catch(e => {
+        terminal.writeln('\x1b[31mFailed to connect. Is server running?\x1b[0m');
       });
     }
 
-    // Create new terminal
-    async function createTerminal() {
-      const shell = document.getElementById('shell-select').value;
+    function clearTerminal() { terminal?.clear(); }
+    function resetTerminal() { terminal?.reset(); }
 
-      try {
-        const response = await fetch(`${API_URL}/api/terminals`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            user: 'user-' + Math.floor(Math.random() * 1000),
-            shell: shell,
-            cols: terminal ? terminal.cols : 80,
-            rows: terminal ? terminal.rows : 30
-          })
-        });
-
-        const data = await response.json();
-
-        if (data.id) {
-          currentTermId = data.id;
-          document.getElementById('session-id').textContent = data.id.substring(0, 8);
-          document.getElementById('shell-type').textContent = data.shell;
-          connectWebSocket(data.id);
-        }
-      } catch (error) {
-        console.error('Failed to create terminal:', error);
-        terminal.writeln('\x1b[31mFailed to create terminal. Is the server running?\x1b[0m');
-      }
+    function closeTerminal() {
+      if (ws) ws.close();
     }
 
-    // Connect to WebSocket
-    function connectWebSocket(termId) {
-      if (ws) {
-        ws.close();
-      }
+    // Flag modal
+    function openFlagModal(labId, labName) {
+      currentLabId = labId;
+      document.getElementById('flag-lab-name').textContent = labName;
+      document.getElementById('flag-modal').classList.add('active');
+    }
 
-      ws = new WebSocket(`${WS_URL}?id=${termId}`);
+    function closeModal() {
+      document.getElementById('flag-modal').classList.remove('active');
+    }
 
-      ws.onopen = () => {
-        document.getElementById('loading').classList.add('hidden');
-        document.getElementById('status-dot').classList.add('connected');
-        document.getElementById('status-text').textContent = 'Connected';
-        console.log('[+] WebSocket connected');
-      };
-
-      ws.onmessage = (event) => {
-        terminal.write(event.data);
-      };
-
-      ws.onclose = () => {
-        document.getElementById('status-dot').classList.remove('connected');
-        document.getElementById('status-text').textContent = 'Disconnected';
-        terminal.writeln('\r\n\x1b[33mSession closed.\x1b[0m');
-        console.log('[-] WebSocket disconnected');
-      };
-
-      ws.onerror = (error) => {
-        console.error('[!] WebSocket error:', error);
-        terminal.writeln('\x1b[31mConnection error!\x1b[0m');
-      };
-
-      // Send terminal input to server
-      terminal.onData((data) => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(data);
-        }
+    async function submitFlag() {
+      const flag = document.getElementById('flag-input').value;
+      const res = await fetch(`${API_URL}/api/labs/${currentLabId}/flag`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ flag })
       });
-    }
+      const data = await res.json();
 
-    // Delete terminal
-    async function deleteTerminal() {
-      if (!currentTermId) return;
-
-      try {
-        await fetch(`${API_URL}/api/terminals/${currentTermId}`, {
-          method: 'DELETE'
-        });
-
-        if (ws) {
-          ws.close();
-        }
-
-        currentTermId = null;
-        terminal.clear();
-        terminal.writeln('\x1b[32mSession closed and cleaned up.\x1b[0m');
-        document.getElementById('session-id').textContent = '-';
-      } catch (error) {
-        console.error('Failed to delete terminal:', error);
+      alert(data.message);
+      if (data.points > 0) {
+        closeModal();
+        loadLabs();
+        loadLeaderboard();
       }
     }
-
-    // Event listeners
-    document.getElementById('new-terminal-btn').addEventListener('click', () => {
-      createTerminal();
-    });
-
-    document.getElementById('clear-btn').addEventListener('click', () => {
-      terminal.clear();
-    });
-
-    document.getElementById('reset-btn').addEventListener('click', () => {
-      terminal.reset();
-    });
-
-    document.getElementById('close-btn').addEventListener('click', () => {
-      deleteTerminal();
-    });
-
-    // Initialize
-    initTerminal();
-    createTerminal();
   </script>
 </body>
 </html>
