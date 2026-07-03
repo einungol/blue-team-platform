@@ -101,6 +101,29 @@ Open **http://localhost:3000**, register an account, and start with the **Termin
 
 ---
 
+## ☁️ Deployment
+
+The app is split so each half deploys to a free tier:
+
+| Part | Host | Notes |
+|------|------|-------|
+| `webapp/` | **Vercel** | Set env `NEXT_PUBLIC_API_URL` to your API URL |
+| `server/` | **Render** | Uses `render.yaml` blueprint; set `CORS_ORIGIN` to your Vercel URL |
+
+### Backend (Render)
+1. Push to GitHub → [render.com](https://render.com) → **New → Blueprint** → pick this repo (`render.yaml` is detected).
+2. After it deploys, copy the service URL (e.g. `https://blue-team-platform-api.onrender.com`).
+3. Set `CORS_ORIGIN` env var to your Vercel frontend URL.
+
+> Render's free tier sleeps after 15 min idle and uses an ephemeral disk — the SQLite DB re-seeds its rooms/labs on restart, which is fine for a demo.
+
+### Frontend (Vercel)
+1. [vercel.com](https://vercel.com) → **New Project** → import this repo → set **Root Directory** to `webapp`.
+2. Add env var `NEXT_PUBLIC_API_URL` = your Render API URL.
+3. Deploy.
+
+---
+
 ## 🗂️ Project structure
 
 ```

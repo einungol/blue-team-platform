@@ -1,22 +1,19 @@
 {
   "name": "blue-team-platform-server",
-  "version": "4.0.0",
-  "description": "Blue Team Lab Platform - Phase 4",
+  "version": "5.0.0",
+  "description": "Blue Team Platform - API server (rooms, interactive labs, auth, achievements)",
   "main": "index.js",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "ws": "^8.14.2",
-    "node-pty": "^1.0.0",
-    "uuid": "^9.0.0",
-    "dotenv": "^16.3.1",
     "sql.js": "^1.10.0",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
-    "dockerode": "^4.0.0",
-    "cors": "^2.8.5",
     "socket.io": "^4.7.2"
   }
 }

@@ -1,0 +1,20 @@
+# Render blueprint for the Blue Team Platform API server.
+# Deploy: push to GitHub → render.com → New → Blueprint → pick this repo.
+services:
+  - type: web
+    name: blue-team-platform-api
+    runtime: node
+    rootDir: server
+    plan: free
+    buildCommand: npm install
+    startCommand: node index.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: JWT_SECRET
+        generateValue: true          # Render generates a strong random secret
+      - key: DB_PATH
+        value: /tmp/blue-team.db      # writable path on the ephemeral disk
+      - key: CORS_ORIGIN
+        sync: false                    # set to your Vercel URL after frontend deploy

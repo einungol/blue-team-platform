@@ -1,36 +1,26 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const WebSocket = require('ws');
-const pty = require('node-pty');
-const { v4: uuidv4 } = require('uuid');
-const os = require('os');
-const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const initSqlJs = require('sql.js');
 const fs = require('fs');
-const path = require('path');
 const roomsContent = require('./content/rooms');
 const interactiveLabs = require('./content/interactive-labs');
 
 const app = express();
 const server = http.createServer(app);
 
-// Serve static files from client folder
-app.use(express.static(path.join(__dirname, '../client')));
+// CORS: allow the deployed frontend origin (comma-separated list) or all in dev.
+const ALLOWED_ORIGINS = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim())
+  : '*';
 
-// Serve index.html on root path
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/index.html'));
-});
-
-// Serve Socket.IO client
-app.use('/socket.io', express.static(path.join(__dirname, 'node_modules/socket.io/client-dist')));
-
-const io = new Server(server, { cors: { origin: '*' } });
+const io = new Server(server, { cors: { origin: ALLOWED_ORIGINS } });
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'blue-team-secret-key-change-in-production';
+// On ephemeral hosts (Render free tier) the disk is wiped on restart; default to
+// a writable temp path so the app still runs and re-seeds its content.
 const DB_PATH = process.env.DB_PATH || './blue-team.db';
 
 // Initialize SQL.js
@@ -289,9 +279,26 @@ function seedData() {
   }
 }
 
-// Middleware
-app.use(cors());
+// Middleware — lightweight CORS (no extra dependency)
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (ALLOWED_ORIGINS === '*') {
+    res.header('Access-Control-Allow-Origin', '*');
+  } else if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Vary', 'Origin');
+  }
+  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
 app.use(express.json());
+
+// Health / root — friendly JSON so hitting the API root doesn't 404
+app.get('/', (req, res) => {
+  res.json({ name: 'Blue Team Platform API', status: 'ok', version: '5.0.0' });
+});
 
 const auth = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
@@ -306,14 +313,6 @@ const admin = (req, res, next) => {
   if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
   next();
 };
-
-const terminals = new Map();
-let docker;
-try {
-  docker = new Docker({ socketPath: '/var/run/docker.sock' });
-} catch (e) {
-  console.log('[!] Docker not available');
-}
 
 // ============ AUTH ============
 app.post('/api/auth/register', async (req, res) => {
@@ -467,64 +466,7 @@ app.get('/api/labs/progress', auth, (req, res) => {
   res.json(progress);
 });
 
-// ============ TERMINALS ============
-app.post('/api/terminals', auth, async (req, res) => {
-  const { labId, cols = 80, rows = 30 } = req.body;
-  const termId = uuidv4();
-  let container = null;
-
-  if (docker && labId) {
-    const lab = getOne('SELECT * FROM labs WHERE id = ?', [labId]);
-    if (lab?.docker_image) {
-      try {
-        container = await docker.createContainer({
-          Image: lab.docker_image, name: `blue-team-${termId}`, Tty: true,
-          AttachStdin: true, AttachStdout: true, AttachStderr: true,
-          Cmd: ['/bin/bash'], Env: ['FLAG=' + lab.flag],
-          HostConfig: { NetworkMode: 'blue-team-network', Memory: 512 * 1024 * 1024, CpuQuota: 50000 }
-        });
-        await container.start();
-      } catch (e) { console.log('[!] Docker:', e.message); }
-    }
-  }
-
-  const shell = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
-  const ptyProcess = pty.spawn(shell, [], {
-    name: 'xterm-256color', cols: parseInt(cols), rows: parseInt(rows),
-    cwd: os.homedir(), env: { ...process.env, TERM: 'xterm-256color', USER: req.user.username }
-  });
-
-  terminals.set(termId, { pty: ptyProcess, userId: req.user.id, containerId: container?.id, labId });
-  run('INSERT INTO terminals (id, user_id, container_id, lab_id) VALUES (?, ?, ?, ?)', [termId, req.user.id, container?.id, labId]);
-  io.emit('terminal_created', { user: req.user.username, lab_id: labId });
-  res.json({ id: termId, shell, hasContainer: !!container });
-});
-
-app.delete('/api/terminals/:id', auth, async (req, res) => {
-  const term = terminals.get(req.params.id);
-  if (term) { term.pty.kill(); terminals.delete(req.params.id); }
-  run('DELETE FROM terminals WHERE id = ?', [req.params.id]);
-  res.json({ message: 'Deleted' });
-});
-
-// ============ WEBSOCKET ============
-const wss = new WebSocket.Server({ port: 8080 });
-wss.on('connection', (ws, req) => {
-  const url = new URL(req.url, 'http://localhost');
-  const token = url.searchParams.get('token'), termId = url.searchParams.get('id');
-  if (!token || !termId) return ws.close(1008);
-  let decoded;
-  try { decoded = jwt.verify(token, JWT_SECRET); } catch { return ws.close(1008); }
-  const term = terminals.get(termId);
-  if (!term || term.userId !== decoded.id) return ws.close(1008);
-
-  console.log(`[+] ${decoded.username} connected`);
-  ws.send('\x1b[32m╔═══════════════════════════════════════════════════╗\r\n║      Blue Team Lab Platform - Interactive Terminal       ║\r\n╚═══════════════════════════════════════════════════╝\x1b[0m\r\n\r\n');
-  term.pty.onData = (data) => { if (ws.readyState === WebSocket.OPEN) ws.send(data); };
-  ws.on('message', (msg) => term.pty.write(msg.toString()));
-  ws.on('close', () => console.log(`[-] ${decoded.username} disconnected`));
-});
-
+// Real-time events (room/lab completions broadcast to connected clients)
 io.on('connection', (socket) => {});
 
 // ============ ROOMS (THM-style playable content) ============
@@ -735,20 +677,21 @@ app.get('/api/users/leaderboard', (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '4.0.0', docker: docker ? 'available' : 'unavailable' });
+  res.json({ status: 'ok', version: '5.0.0' });
 });
 
 // Start
 initDB().then(() => {
   console.log(`
 ╔═══════════════════════════════════════════════════════════════╗
-║        Blue Team Lab Platform - Phase 4 Server            ║
+║             Blue Team Platform - API Server                   ║
 ╠═══════════════════════════════════════════════════════════════╣
-║  Version: 4.0.0                                        ║
-║  Port: ${PORT}                                              ║
+║  Version: 5.0.0                                                ║
+║  Port: ${PORT}                                                     ║
 ╚═══════════════════════════════════════════════════════════════╝
 `);
-  server.listen(PORT, () => console.log(`[+] Server running on port ${PORT}`));
+  // Bind 0.0.0.0 so cloud platforms (Render) can route to it.
+  server.listen(PORT, '0.0.0.0', () => console.log(`[+] Server running on port ${PORT}`));
 }).catch(e => {
   console.error('Failed to initialize DB:', e);
   process.exit(1);
