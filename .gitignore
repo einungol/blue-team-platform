@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Next.js build output
+webapp/.next/
+webapp/out/
+.next/
+
+# Environment / secrets (NEVER commit)
+.env
+.env.local
+.env*.local
+**/.env.local
+# ...but DO keep the safe template
+!.env.example
+!**/.env.example
+
+# Database (runtime data)
+server/*.db
+server/blue-team.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Build / cache
+dist/
+build/
+*.tsbuildinfo
+.turbo/
+
+# AI / assistant instruction files (not for public repo)
+CLAUDE.md
+**/CLAUDE.md
+AGENTS.md
+**/AGENTS.md
+
+# Legacy phase setup guides (internal notes)
+PHASE*-SETUP-GUIDE.md
+
+# Misc
+*.pem
+coverage/

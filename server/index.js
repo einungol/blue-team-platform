@@ -8,126 +8,248 @@ const os = require('os');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const Database = require('better-sqlite3');
-const Docker = require('dockerode');
+const initSqlJs = require('sql.js');
 const fs = require('fs');
 const path = require('path');
+const roomsContent = require('./content/rooms');
+const interactiveLabs = require('./content/interactive-labs');
 
 const app = express();
 const server = http.createServer(app);
+
+// Serve static files from client folder
+app.use(express.static(path.join(__dirname, '../client')));
+
+// Serve index.html on root path
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/index.html'));
+});
+
+// Serve Socket.IO client
+app.use('/socket.io', express.static(path.join(__dirname, 'node_modules/socket.io/client-dist')));
+
 const io = new Server(server, { cors: { origin: '*' } });
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'blue-team-secret-key-change-in-production';
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const DB_PATH = process.env.DB_PATH || './blue-team.db';
 
-// Database
-const db = new Database(IS_PRODUCTION ? '/data/blue-team.db' : 'blue-team.db');
+// Initialize SQL.js
+let db;
 
-// Docker
-let docker;
-try {
-  docker = new Docker({ socketPath: IS_PRODUCTION ? '/var/run/docker.sock' : '/var/run/docker.sock' });
-} catch (e) {
-  console.log('[!] Docker not available');
+async function initDB() {
+  const SQL = await initSqlJs();
+
+  try {
+    if (fs.existsSync(DB_PATH)) {
+      const buffer = fs.readFileSync(DB_PATH);
+      db = new SQL.Database(buffer);
+    } else {
+      db = new SQL.Database();
+    }
+  } catch (e) {
+    db = new SQL.Database();
+  }
+
+  // Create tables
+  db.run(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT UNIQUE NOT NULL,
+      email TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      role TEXT DEFAULT 'user',
+      points INTEGER DEFAULT 0,
+      labs_completed INTEGER DEFAULT 0,
+      avatar TEXT DEFAULT '',
+      bio TEXT DEFAULT '',
+      team_id INTEGER,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS teams (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL,
+      description TEXT,
+      leader_id INTEGER,
+      points INTEGER DEFAULT 0,
+      members_count INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS labs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT,
+      difficulty TEXT DEFAULT 'easy',
+      category TEXT DEFAULT 'blue',
+      points INTEGER DEFAULT 10,
+      docker_image TEXT,
+      flag TEXT NOT NULL,
+      hint TEXT,
+      is_public INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS user_labs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      lab_id INTEGER NOT NULL,
+      completed INTEGER DEFAULT 0,
+      flag_submitted TEXT,
+      attempts INTEGER DEFAULT 0,
+      time_spent INTEGER DEFAULT 0,
+      completed_at TEXT,
+      UNIQUE(user_id, lab_id)
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS achievements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT,
+      icon TEXT,
+      points_required INTEGER DEFAULT 0,
+      labs_required INTEGER DEFAULT 0,
+      badge_type TEXT DEFAULT 'bronze'
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS user_achievements (
+      user_id INTEGER NOT NULL,
+      achievement_id INTEGER NOT NULL,
+      earned_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (user_id, achievement_id)
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS docker_images (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      image TEXT NOT NULL,
+      description TEXT,
+      category TEXT DEFAULT 'blue',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS terminals (
+      id TEXT PRIMARY KEY,
+      user_id INTEGER,
+      container_id TEXT,
+      lab_id INTEGER,
+      status TEXT DEFAULT 'active',
+      created TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Per-question progress for the Rooms system (THM-style)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS room_progress (
+      user_id INTEGER NOT NULL,
+      room_id INTEGER NOT NULL,
+      question_id TEXT NOT NULL,
+      points INTEGER DEFAULT 0,
+      answered_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (user_id, room_id, question_id)
+    )
+  `);
+
+  // Seed data
+  seedData();
+  saveDB();
 }
 
-// Create tables
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    role TEXT DEFAULT 'user',
-    points INTEGER DEFAULT 0,
-    labs_completed INTEGER DEFAULT 0,
-    avatar TEXT DEFAULT 'default',
-    bio TEXT DEFAULT '',
-    team_id INTEGER,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
+function saveDB() {
+  const data = db.export();
+  const buffer = Buffer.from(data);
+  fs.writeFileSync(DB_PATH, buffer);
+}
 
-  CREATE TABLE IF NOT EXISTS teams (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT UNIQUE NOT NULL,
-    description TEXT,
-    leader_id INTEGER,
-    points INTEGER DEFAULT 0,
-    members_count INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
+function query(sql, params = []) {
+  try {
+    const stmt = db.prepare(sql);
+    if (params.length > 0) stmt.bind(params);
 
-  CREATE TABLE IF NOT EXISTS labs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    description TEXT,
-    difficulty TEXT DEFAULT 'easy',
-    category TEXT DEFAULT 'blue',
-    points INTEGER DEFAULT 10,
-    docker_image TEXT,
-    flag TEXT NOT NULL,
-    hint TEXT,
-    flag_hash TEXT,
-    time_limit INTEGER DEFAULT 0,
-    is_public BOOLEAN DEFAULT 1,
-    tags TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
+    const results = [];
+    while (stmt.step()) {
+      results.push(stmt.getAsObject());
+    }
+    stmt.free();
+    return results;
+  } catch (e) {
+    console.error('Query error:', e);
+    return [];
+  }
+}
 
-  CREATE TABLE IF NOT EXISTS user_labs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    lab_id INTEGER NOT NULL,
-    completed BOOLEAN DEFAULT FALSE,
-    flag_submitted TEXT,
-    attempts INTEGER DEFAULT 0,
-    time_spent INTEGER DEFAULT 0,
-    completed_at DATETIME,
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (lab_id) REFERENCES labs(id),
-    UNIQUE(user_id, lab_id)
-  );
+function run(sql, params = []) {
+  try {
+    db.run(sql, params);
+    // IMPORTANT: read last_insert_rowid() BEFORE saveDB(), because
+    // db.export() (inside saveDB) resets last_insert_rowid() back to 0.
+    const lastInsertRowid = db.exec("SELECT last_insert_rowid()")[0]?.values[0]?.[0] || 0;
+    saveDB();
+    return { lastInsertRowid };
+  } catch (e) {
+    console.error('Run error:', e);
+    return { lastInsertRowid: 0 };
+  }
+}
 
-  CREATE TABLE IF NOT EXISTS achievements (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    description TEXT,
-    icon TEXT,
-    points_required INTEGER DEFAULT 0,
-    labs_required INTEGER DEFAULT 0,
-    badge_type TEXT DEFAULT 'bronze'
-  );
+function getOne(sql, params = []) {
+  const results = query(sql, params);
+  return results[0] || null;
+}
 
-  CREATE TABLE IF NOT EXISTS user_achievements (
-    user_id INTEGER NOT NULL,
-    achievement_id INTEGER NOT NULL,
-    earned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (user_id, achievement_id)
-  );
+/**
+ * Award any achievements the user now qualifies for.
+ * Thresholds: points_required (>= user.points) OR labs_required (>= user.labs_completed).
+ * Idempotent — INSERT OR IGNORE prevents duplicates.
+ * Returns the list of newly earned achievements.
+ */
+function checkAchievements(userId) {
+  const user = getOne('SELECT points, labs_completed FROM users WHERE id = ?', [userId]);
+  if (!user) return [];
 
-  CREATE TABLE IF NOT EXISTS docker_images (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    image TEXT NOT NULL,
-    description TEXT,
-    category TEXT DEFAULT 'blue',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
+  const earnedIds = query('SELECT achievement_id FROM user_achievements WHERE user_id = ?', [userId])
+    .map((r) => r.achievement_id);
 
-  CREATE TABLE IF NOT EXISTS terminals (
-    id TEXT PRIMARY KEY,
-    user_id INTEGER,
-    container_id TEXT,
-    lab_id INTEGER,
-    status TEXT DEFAULT 'active',
-    created DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-`);
+  const all = query('SELECT * FROM achievements');
+  const newly = [];
 
-// Seed data
-const seedData = () => {
-  if (db.prepare('SELECT COUNT(*) FROM achievements').get().count === 0) {
-    const achievements = [
+  for (const a of all) {
+    if (earnedIds.includes(a.id)) continue;
+    const meetsPoints = a.points_required > 0 && user.points >= a.points_required;
+    const meetsLabs = a.labs_required > 0 && user.labs_completed >= a.labs_required;
+    if (meetsPoints || meetsLabs) {
+      run('INSERT OR IGNORE INTO user_achievements (user_id, achievement_id) VALUES (?, ?)', [userId, a.id]);
+      newly.push(a);
+    }
+  }
+
+  if (newly.length) {
+    io.emit('achievement_earned', {
+      user_id: userId,
+      achievements: newly.map((a) => ({ name: a.name, icon: a.icon, badge_type: a.badge_type })),
+    });
+  }
+  return newly;
+}
+
+function seedData() {
+  const achievements = query('SELECT COUNT(*) as count FROM achievements');
+  if (achievements[0]?.count === 0) {
+    const achList = [
       { name: 'First Blood', description: 'Complete your first lab', icon: '🎯', points_required: 0, labs_required: 1, badge_type: 'bronze' },
       { name: 'Blue Analyst', description: 'Earn 50 points', icon: '🔵', points_required: 50, labs_required: 0, badge_type: 'bronze' },
       { name: 'SOC Specialist', description: 'Earn 100 points', icon: '🛡️', points_required: 100, labs_required: 0, badge_type: 'silver' },
@@ -137,11 +259,12 @@ const seedData = () => {
       { name: 'Lab Master', description: 'Complete 10 labs', icon: '👑', points_required: 0, labs_required: 10, badge_type: 'silver' },
       { name: 'Blue Team Legend', description: 'Complete 20 labs', icon: '⭐', points_required: 0, labs_required: 20, badge_type: 'gold' }
     ];
-    achievements.forEach(a => db.prepare('INSERT INTO achievements (name, description, icon, points_required, labs_required, badge_type) VALUES (?, ?, ?, ?, ?, ?)').run(a.name, a.description, a.icon, a.points_required, a.labs_required, a.badge_type));
+    achList.forEach(a => run('INSERT INTO achievements (name, description, icon, points_required, labs_required, badge_type) VALUES (?, ?, ?, ?, ?, ?)', [a.name, a.description, a.icon, a.points_required, a.labs_required, a.badge_type]));
   }
 
-  if (db.prepare('SELECT COUNT(*) FROM labs').get().count === 0) {
-    const labs = [
+  const labs = query('SELECT COUNT(*) as count FROM labs');
+  if (labs[0]?.count === 0) {
+    const labList = [
       { name: 'Log Analysis Basics', description: 'Analyze suspicious logs and find the attacker IP', difficulty: 'easy', category: 'blue', points: 10, flag: 'BLUE{log_analyst_001}', hint: 'Look for failed login attempts with Event ID 4625' },
       { name: 'Malware IOC Extraction', description: 'Extract IOCs (IP, Domain, Hash) from malware sample', difficulty: 'easy', category: 'blue', points: 15, flag: 'BLUE{malware_ioc_002}', hint: 'Check network connections in sandbox' },
       { name: 'SIEM Query Practice', description: 'Write Splunk queries to detect brute force attack', difficulty: 'medium', category: 'blue', points: 20, flag: 'BLUE{siem_queries_003}', hint: 'Use stats and where clauses' },
@@ -151,21 +274,20 @@ const seedData = () => {
       { name: 'Incident Response', description: 'Respond to a ransomware incident step by step', difficulty: 'hard', category: 'blue', points: 30, flag: 'BLUE{ir_response_007}', hint: 'Follow IR lifecycle: Contain, Eradicate, Recover' },
       { name: 'Memory Forensics', description: 'Analyze memory dump and find hidden process', difficulty: 'hard', category: 'blue', points: 35, flag: 'BLUE{memory_008}', hint: 'Use volatility psscan to find hidden processes' }
     ];
-    labs.forEach(l => db.prepare('INSERT INTO labs (name, description, difficulty, category, points, flag, hint) VALUES (?, ?, ?, ?, ?, ?, ?)').run(l.name, l.description, l.difficulty, l.category, l.points, l.flag, l.hint));
+    labList.forEach(l => run('INSERT INTO labs (name, description, difficulty, category, points, flag, hint) VALUES (?, ?, ?, ?, ?, ?, ?)', [l.name, l.description, l.difficulty, l.category, l.points, l.flag, l.hint]));
   }
 
-  if (db.prepare('SELECT COUNT(*) FROM docker_images').get().count === 0) {
-    const images = [
+  const images = query('SELECT COUNT(*) as count FROM docker_images');
+  if (images[0]?.count === 0) {
+    const imgList = [
       { name: 'DVWA', image: 'sagikazarmark/dvwa', description: 'Damn Vulnerable Web Application', category: 'web' },
       { name: 'OWASP Juice Shop', image: 'bkimminich/juice-shop', description: 'Modern web app security training', category: 'web' },
       { name: 'Metasploitable', image: 'rapid7/metasploitable3', description: 'Vulnerable Linux VM', category: 'pentest' },
-      { name: 'Windows Server 2019', image: 'mcr.microsoft.com/windows/servercore:ltsc2019', description: 'Windows Server Core', category: 'windows' },
       { name: 'Kali Linux', image: 'kalilinux/kali-rolling', description: 'Penetration Testing Linux', category: 'pentest' }
     ];
-    images.forEach(i => db.prepare('INSERT INTO docker_images (name, image, description, category) VALUES (?, ?, ?, ?)').run(i.name, i.image, i.description, i.category));
+    imgList.forEach(i => run('INSERT INTO docker_images (name, image, description, category) VALUES (?, ?, ?, ?)', [i.name, i.image, i.description, i.category]));
   }
-};
-seedData();
+}
 
 // Middleware
 app.use(cors());
@@ -186,14 +308,19 @@ const admin = (req, res, next) => {
 };
 
 const terminals = new Map();
-const containers = new Map();
+let docker;
+try {
+  docker = new Docker({ socketPath: '/var/run/docker.sock' });
+} catch (e) {
+  console.log('[!] Docker not available');
+}
 
 // ============ AUTH ============
 app.post('/api/auth/register', async (req, res) => {
   const { username, email, password } = req.body;
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
-    const result = db.prepare('INSERT INTO users (username, email, password) VALUES (?, ?, ?)').run(username, email, hashedPassword);
+    const result = run('INSERT INTO users (username, email, password) VALUES (?, ?, ?)', [username, email, hashedPassword]);
     const token = jwt.sign({ id: result.lastInsertRowid, username, role: 'user' }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user: { id: result.lastInsertRowid, username, email, role: 'user', points: 0, labs_completed: 0 } });
   } catch (e) {
@@ -203,21 +330,21 @@ app.post('/api/auth/register', async (req, res) => {
 
 app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
-  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+  const user = getOne('SELECT * FROM users WHERE username = ?', [username]);
   if (!user || !await bcrypt.compare(password, user.password)) return res.status(401).json({ error: 'Invalid credentials' });
   const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
   res.json({ token, user: { id: user.id, username: user.username, email: user.email, role: user.role, points: user.points, labs_completed: user.labs_completed, avatar: user.avatar, bio: user.bio, team_id: user.team_id } });
 });
 
 app.get('/api/auth/me', auth, (req, res) => {
-  const user = db.prepare('SELECT id, username, email, role, points, labs_completed, avatar, bio, team_id, created_at FROM users WHERE id = ?').get(req.user.id);
-  const achievements = db.prepare('SELECT a.* FROM achievements a JOIN user_achievements ua ON a.id = ua.achievement_id WHERE ua.user_id = ?').all(req.user.id);
+  const user = getOne('SELECT id, username, email, role, points, labs_completed, avatar, bio, team_id, created_at FROM users WHERE id = ?', [req.user.id]);
+  const achievements = query('SELECT a.* FROM achievements a JOIN user_achievements ua ON a.id = ua.achievement_id WHERE ua.user_id = ?', [req.user.id]);
   res.json({ ...user, achievements });
 });
 
 app.put('/api/auth/profile', auth, (req, res) => {
   const { avatar, bio } = req.body;
-  db.prepare('UPDATE users SET avatar = COALESCE(?, avatar), bio = COALESCE(?, bio) WHERE id = ?').run(avatar, bio, req.user.id);
+  run('UPDATE users SET avatar = COALESCE(?, avatar), bio = COALESCE(?, bio) WHERE id = ?', [avatar, bio, req.user.id]);
   res.json({ message: 'Profile updated' });
 });
 
@@ -225,135 +352,120 @@ app.put('/api/auth/profile', auth, (req, res) => {
 app.post('/api/teams', auth, (req, res) => {
   const { name, description } = req.body;
   try {
-    const result = db.prepare('INSERT INTO teams (name, description, leader_id) VALUES (?, ?, ?)').run(name, description, req.user.id);
-    db.prepare('UPDATE users SET team_id = ? WHERE id = ?').run(result.lastInsertRowid, req.user.id);
+    const result = run('INSERT INTO teams (name, description, leader_id) VALUES (?, ?, ?)', [name, description, req.user.id]);
+    run('UPDATE users SET team_id = ? WHERE id = ?', [result.lastInsertRowid, req.user.id]);
     res.json({ id: result.lastInsertRowid, message: 'Team created' });
   } catch (e) { res.status(400).json({ error: 'Team name exists' }); }
 });
 
 app.get('/api/teams', (req, res) => {
-  const teams = db.prepare('SELECT t.*, u.username as leader_name FROM teams t JOIN users u ON t.leader_id = u.id ORDER BY points DESC').all();
+  const teams = query('SELECT t.*, u.username as leader_name FROM teams t JOIN users u ON t.leader_id = u.id ORDER BY points DESC');
   res.json(teams);
 });
 
-app.get('/api/teams/:id', (req, res) => {
-  const team = db.prepare('SELECT * FROM teams WHERE id = ?').get(req.params.id);
-  const members = db.prepare('SELECT id, username, points, labs_completed FROM users WHERE team_id = ?').all(req.params.id);
-  res.json({ ...team, members });
-});
-
 app.post('/api/teams/:id/join', auth, (req, res) => {
-  const team = db.prepare('SELECT * FROM teams WHERE id = ?').get(req.params.id);
+  const team = getOne('SELECT * FROM teams WHERE id = ?', [req.params.id]);
   if (!team) return res.status(404).json({ error: 'Team not found' });
-  db.prepare('UPDATE users SET team_id = ? WHERE id = ?').run(req.params.id, req.user.id);
-  db.prepare('UPDATE teams SET members_count = members_count + 1 WHERE id = ?').run(req.params.id);
+  run('UPDATE users SET team_id = ? WHERE id = ?', [req.params.id, req.user.id]);
+  run('UPDATE teams SET members_count = members_count + 1 WHERE id = ?', [req.params.id]);
   res.json({ message: 'Joined team' });
 });
 
 // ============ ADMIN ============
 app.get('/api/admin/stats', auth, admin, (req, res) => {
-  const users = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
-  const labs = db.prepare('SELECT COUNT(*) as count FROM labs').get().count;
-  const completions = db.prepare('SELECT COUNT(*) as count FROM user_labs WHERE completed = 1').get().count;
-  const terminals = db.prepare('SELECT COUNT(*) as count FROM terminals WHERE status = ?').get('active').count;
-  const teams = db.prepare('SELECT COUNT(*) as count FROM teams').get().count;
+  const users = query('SELECT COUNT(*) as count FROM users')[0]?.count || 0;
+  const labs = query('SELECT COUNT(*) as count FROM labs')[0]?.count || 0;
+  const completions = query('SELECT COUNT(*) as count FROM user_labs WHERE completed = 1')[0]?.count || 0;
+  const terminals = query('SELECT COUNT(*) as count FROM terminals WHERE status = ?', ['active'])[0]?.count || 0;
+  const teams = query('SELECT COUNT(*) as count FROM teams')[0]?.count || 0;
   res.json({ users, labs, completions, active_terminals: terminals, teams });
 });
 
-app.get('/api/admin/labs', auth, admin, (req, res) => res.json(db.prepare('SELECT * FROM labs ORDER BY id').all()));
-app.get('/api/admin/docker-images', auth, admin, (req, res) => res.json(db.prepare('SELECT * FROM docker_images').all()));
+app.get('/api/admin/labs', auth, admin, (req, res) => res.json(query('SELECT * FROM labs ORDER BY id')));
+app.get('/api/admin/docker-images', auth, admin, (req, res) => res.json(query('SELECT * FROM docker_images')));
 
 app.post('/api/admin/docker-images', auth, admin, (req, res) => {
   const { name, image, description, category } = req.body;
-  const result = db.prepare('INSERT INTO docker_images (name, image, description, category) VALUES (?, ?, ?, ?)').run(name, image, description, category);
+  const result = run('INSERT INTO docker_images (name, image, description, category) VALUES (?, ?, ?, ?)', [name, image, description, category]);
   res.json({ id: result.lastInsertRowid });
 });
 
 app.delete('/api/admin/docker-images/:id', auth, admin, (req, res) => {
-  db.prepare('DELETE FROM docker_images WHERE id = ?').run(req.params.id);
+  run('DELETE FROM docker_images WHERE id = ?', [req.params.id]);
   res.json({ message: 'Deleted' });
 });
 
 app.post('/api/admin/labs', auth, admin, (req, res) => {
-  const { name, description, difficulty, category, points, docker_image, flag, hint, is_public, tags } = req.body;
-  const result = db.prepare('INSERT INTO labs (name, description, difficulty, category, points, docker_image, flag, hint, is_public, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(name, description, difficulty, category, points, docker_image, flag, hint, is_public ? 1 : 0, tags);
+  const { name, description, difficulty, category, points, docker_image, flag, hint, is_public } = req.body;
+  const result = run('INSERT INTO labs (name, description, difficulty, category, points, docker_image, flag, hint, is_public) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [name, description, difficulty, category, points, docker_image, flag, hint, is_public ? 1 : 0]);
   io.emit('lab_created', { id: result.lastInsertRowid, name });
   res.json({ id: result.lastInsertRowid });
 });
 
 app.put('/api/admin/labs/:id', auth, admin, (req, res) => {
-  const { name, description, difficulty, category, points, flag, hint, is_public, tags } = req.body;
-  db.prepare('UPDATE labs SET name = ?, description = ?, difficulty = ?, category = ?, points = ?, flag = ?, hint = ?, is_public = ?, tags = ? WHERE id = ?').run(name, description, difficulty, category, points, flag, hint, is_public ? 1 : 0, tags, req.params.id);
-  io.emit('lab_updated', { id: req.params.id });
+  const { name, description, difficulty, category, points, flag, hint, is_public } = req.body;
+  run('UPDATE labs SET name = ?, description = ?, difficulty = ?, category = ?, points = ?, flag = ?, hint = ?, is_public = ? WHERE id = ?', [name, description, difficulty, category, points, flag, hint, is_public ? 1 : 0, req.params.id]);
   res.json({ message: 'Updated' });
 });
 
 app.delete('/api/admin/labs/:id', auth, admin, (req, res) => {
-  db.prepare('DELETE FROM labs WHERE id = ?').run(req.params.id);
-  db.prepare('DELETE FROM user_labs WHERE lab_id = ?').run(req.params.id);
+  run('DELETE FROM labs WHERE id = ?', [req.params.id]);
+  run('DELETE FROM user_labs WHERE lab_id = ?', [req.params.id]);
   res.json({ message: 'Deleted' });
 });
 
 // ============ LABS ============
 app.get('/api/labs', (req, res) => {
   const { category, difficulty, search } = req.query;
-  let query = 'SELECT * FROM labs WHERE is_public = 1';
-  if (category) query += ` AND category = '${category}'`;
-  if (difficulty) query += ` AND difficulty = '${difficulty}'`;
-  if (search) query += ` AND (name LIKE '%${search}%' OR description LIKE '%${search}%')`;
-  query += ' ORDER BY difficulty, points';
-  res.json(db.prepare(query).all());
+  let sql = 'SELECT * FROM labs WHERE is_public = 1';
+  const params = [];
+  if (category) { sql += ' AND category = ?'; params.push(category); }
+  if (difficulty) { sql += ' AND difficulty = ?'; params.push(difficulty); }
+  if (search) {
+    sql += ' AND (name LIKE ? OR description LIKE ?)';
+    params.push(`%${search}%`, `%${search}%`);
+  }
+  sql += ' ORDER BY difficulty, points';
+  res.json(query(sql, params));
 });
 
 app.get('/api/labs/:id', (req, res) => {
-  const lab = db.prepare('SELECT * FROM labs WHERE id = ?').get(req.params.id);
+  const lab = getOne('SELECT * FROM labs WHERE id = ?', [req.params.id]);
   if (!lab) return res.status(404).json({ error: 'Lab not found' });
   res.json(lab);
 });
 
 app.post('/api/labs/:id/flag', auth, (req, res) => {
   const { flag, time_spent = 0 } = req.body;
-  const lab = db.prepare('SELECT * FROM labs WHERE id = ?').get(req.params.id);
+  const lab = getOne('SELECT * FROM labs WHERE id = ?', [req.params.id]);
   if (!lab) return res.status(404).json({ error: 'Lab not found' });
 
-  const existing = db.prepare('SELECT * FROM user_labs WHERE user_id = ? AND lab_id = ? AND completed = 1').get(req.user.id, req.params.id);
+  const existing = getOne('SELECT * FROM user_labs WHERE user_id = ? AND lab_id = ? AND completed = 1', [req.user.id, req.params.id]);
   if (existing) return res.json({ message: 'Already completed', points: 0 });
 
-  const user_lab = db.prepare('SELECT attempts FROM user_labs WHERE user_id = ? AND lab_id = ?').get(req.user.id, req.params.id);
+  const user_lab = getOne('SELECT attempts FROM user_labs WHERE user_id = ? AND lab_id = ?', [req.user.id, req.params.id]);
   const attempts = (user_lab?.attempts || 0) + 1;
 
   if (flag === lab.flag) {
-    db.prepare('INSERT OR REPLACE INTO user_labs (user_id, lab_id, completed, flag_submitted, attempts, time_spent, completed_at) VALUES (?, ?, 1, ?, ?, ?, ?)').run(req.user.id, req.params.id, flag, attempts, time_spent, new Date().toISOString());
-    db.prepare('UPDATE users SET points = points + ?, labs_completed = labs_completed + 1 WHERE id = ?').run(lab.points, req.user.id);
+    run('INSERT OR REPLACE INTO user_labs (user_id, lab_id, completed, flag_submitted, attempts, time_spent, completed_at) VALUES (?, ?, 1, ?, ?, ?, ?)', [req.user.id, req.params.id, flag, attempts, time_spent, new Date().toISOString()]);
+    run('UPDATE users SET points = points + ?, labs_completed = labs_completed + 1 WHERE id = ?', [lab.points, req.user.id]);
 
-    // Team points
-    const user = db.prepare('SELECT team_id FROM users WHERE id = ?').get(req.user.id);
-    if (user.team_id) db.prepare('UPDATE teams SET points = points + ? WHERE id = ?').run(lab.points, user.team_id);
+    const user = getOne('SELECT team_id FROM users WHERE id = ?', [req.user.id]);
+    if (user?.team_id) run('UPDATE teams SET points = points + ? WHERE id = ?', [lab.points, user.team_id]);
 
-    checkAchievements(req.user.id);
     io.emit('lab_completed', { user_id: req.user.id, username: req.user.username, lab_id: req.params.id, points: lab.points, lab_name: lab.name });
     res.json({ message: 'Correct! Well done!', points: lab.points });
   } else {
-    db.prepare('INSERT OR IGNORE INTO user_labs (user_id, lab_id, attempts) VALUES (?, ?, ?)').run(req.user.id, req.params.id, attempts);
-    db.prepare('UPDATE user_labs SET attempts = attempts + 1, time_spent = time_spent + ? WHERE user_id = ? AND lab_id = ?').run(time_spent, req.user.id, req.params.id);
+    run('INSERT OR IGNORE INTO user_labs (user_id, lab_id, attempts) VALUES (?, ?, ?)', [req.user.id, req.params.id, attempts]);
+    run('UPDATE user_labs SET attempts = attempts + 1, time_spent = time_spent + ? WHERE user_id = ? AND lab_id = ?', [time_spent, req.user.id, req.params.id]);
     res.json({ message: 'Incorrect flag', attempts });
   }
 });
 
 app.get('/api/labs/progress', auth, (req, res) => {
-  const progress = db.prepare('SELECT ul.*, l.name, l.points, l.difficulty, l.category FROM user_labs ul JOIN labs l ON ul.lab_id = l.id WHERE ul.user_id = ?').all(req.user.id);
+  const progress = query('SELECT ul.*, l.name, l.points, l.difficulty, l.category FROM user_labs ul JOIN labs l ON ul.lab_id = l.id WHERE ul.user_id = ?', [req.user.id]);
   res.json(progress);
 });
-
-function checkAchievements(userId) {
-  const user = db.prepare('SELECT points, labs_completed FROM users WHERE id = ?').get(userId);
-  const achievements = db.prepare('SELECT * FROM achievements WHERE id NOT IN (SELECT achievement_id FROM user_achievements WHERE user_id = ?)').all(userId);
-  achievements.forEach(a => {
-    if ((a.points_required > 0 && user.points >= a.points_required) || (a.labs_required > 0 && user.labs_completed >= a.labs_required)) {
-      db.prepare('INSERT OR IGNORE INTO user_achievements (user_id, achievement_id) VALUES (?, ?)').run(userId, a.id);
-    }
-  });
-}
 
 // ============ TERMINALS ============
 app.post('/api/terminals', auth, async (req, res) => {
@@ -362,7 +474,7 @@ app.post('/api/terminals', auth, async (req, res) => {
   let container = null;
 
   if (docker && labId) {
-    const lab = db.prepare('SELECT * FROM labs WHERE id = ?').get(labId);
+    const lab = getOne('SELECT * FROM labs WHERE id = ?', [labId]);
     if (lab?.docker_image) {
       try {
         container = await docker.createContainer({
@@ -372,7 +484,6 @@ app.post('/api/terminals', auth, async (req, res) => {
           HostConfig: { NetworkMode: 'blue-team-network', Memory: 512 * 1024 * 1024, CpuQuota: 50000 }
         });
         await container.start();
-        containers.set(termId, container);
       } catch (e) { console.log('[!] Docker:', e.message); }
     }
   }
@@ -384,7 +495,7 @@ app.post('/api/terminals', auth, async (req, res) => {
   });
 
   terminals.set(termId, { pty: ptyProcess, userId: req.user.id, containerId: container?.id, labId });
-  db.prepare('INSERT INTO terminals (id, user_id, container_id, lab_id) VALUES (?, ?, ?, ?)').run(termId, req.user.id, container?.id, labId);
+  run('INSERT INTO terminals (id, user_id, container_id, lab_id) VALUES (?, ?, ?, ?)', [termId, req.user.id, container?.id, labId]);
   io.emit('terminal_created', { user: req.user.username, lab_id: labId });
   res.json({ id: termId, shell, hasContainer: !!container });
 });
@@ -392,9 +503,7 @@ app.post('/api/terminals', auth, async (req, res) => {
 app.delete('/api/terminals/:id', auth, async (req, res) => {
   const term = terminals.get(req.params.id);
   if (term) { term.pty.kill(); terminals.delete(req.params.id); }
-  const container = containers.get(req.params.id);
-  if (container) { try { await container.stop(); await container.remove(); } catch {} containers.delete(req.params.id); }
-  db.prepare('DELETE FROM terminals WHERE id = ?').run(req.params.id);
+  run('DELETE FROM terminals WHERE id = ?', [req.params.id]);
   res.json({ message: 'Deleted' });
 });
 
@@ -416,27 +525,231 @@ wss.on('connection', (ws, req) => {
   ws.on('close', () => console.log(`[-] ${decoded.username} disconnected`));
 });
 
-// Socket.IO
-io.on('connection', (socket) => {
-  socket.on('disconnect', () => {});
+io.on('connection', (socket) => {});
+
+// ============ ROOMS (THM-style playable content) ============
+
+// List all rooms as summary cards. If authenticated, include the user's progress.
+app.get('/api/rooms', (req, res) => {
+  const summaries = roomsContent.rooms.map(roomsContent.toSummary);
+
+  // Optional auth: attach progress if a valid token is present
+  const token = req.headers.authorization?.split(' ')[1];
+  let userId = null;
+  if (token) {
+    try { userId = jwt.verify(token, JWT_SECRET).id; } catch { /* ignore */ }
+  }
+
+  if (userId) {
+    summaries.forEach((s) => {
+      const done = query(
+        'SELECT COUNT(*) as c, COALESCE(SUM(points),0) as p FROM room_progress WHERE user_id = ? AND room_id = ?',
+        [userId, s.id]
+      )[0] || { c: 0, p: 0 };
+      s.solvedQuestions = done.c;
+      s.earnedPoints = done.p;
+      s.completed = done.c >= s.totalQuestions;
+    });
+  }
+
+  res.json(summaries);
+});
+
+// Get a single room's full content (answers stripped). Includes user's solved questions.
+app.get('/api/rooms/:id', (req, res) => {
+  const room = roomsContent.getRoomById(req.params.id);
+  if (!room) return res.status(404).json({ error: 'Room not found' });
+
+  const publicRoom = roomsContent.toPublicRoom(room);
+
+  const token = req.headers.authorization?.split(' ')[1];
+  let userId = null;
+  if (token) {
+    try { userId = jwt.verify(token, JWT_SECRET).id; } catch { /* ignore */ }
+  }
+
+  if (userId) {
+    const solved = query(
+      'SELECT question_id, points FROM room_progress WHERE user_id = ? AND room_id = ?',
+      [userId, room.id]
+    );
+    publicRoom.solved = solved.map((s) => s.question_id);
+    publicRoom.earnedPoints = solved.reduce((sum, s) => sum + (s.points || 0), 0);
+  } else {
+    publicRoom.solved = [];
+    publicRoom.earnedPoints = 0;
+  }
+
+  res.json(publicRoom);
+});
+
+// Submit an answer to a single question. Server checks correctness.
+app.post('/api/rooms/:id/answer', auth, (req, res) => {
+  const { questionId, answer } = req.body;
+  const room = roomsContent.getRoomById(req.params.id);
+  if (!room) return res.status(404).json({ error: 'Room not found' });
+
+  const question = roomsContent.findQuestion(room, questionId);
+  if (!question) return res.status(404).json({ error: 'Question not found' });
+
+  // Already solved? Idempotent, no double points.
+  const already = getOne(
+    'SELECT 1 FROM room_progress WHERE user_id = ? AND room_id = ? AND question_id = ?',
+    [req.user.id, room.id, questionId]
+  );
+  if (already) {
+    return res.json({ correct: true, alreadySolved: true, points: 0 });
+  }
+
+  const correct = roomsContent.checkAnswer(question, answer);
+  if (!correct) {
+    return res.json({ correct: false });
+  }
+
+  // Record progress + award points
+  run(
+    'INSERT OR IGNORE INTO room_progress (user_id, room_id, question_id, points) VALUES (?, ?, ?, ?)',
+    [req.user.id, room.id, questionId, question.points]
+  );
+  run('UPDATE users SET points = points + ? WHERE id = ?', [question.points, req.user.id]);
+
+  // Check if the whole room is now complete -> count as a completed lab
+  const solvedCount = query(
+    'SELECT COUNT(*) as c FROM room_progress WHERE user_id = ? AND room_id = ?',
+    [req.user.id, room.id]
+  )[0]?.c || 0;
+
+  let roomCompleted = false;
+  if (solvedCount >= room.totalQuestions) {
+    roomCompleted = true;
+    run('UPDATE users SET labs_completed = labs_completed + 1 WHERE id = ?', [req.user.id]);
+    const user = getOne('SELECT team_id FROM users WHERE id = ?', [req.user.id]);
+    if (user?.team_id) run('UPDATE teams SET points = points + ? WHERE id = ?', [room.totalPoints, user.team_id]);
+    io.emit('room_completed', { user_id: req.user.id, username: req.user.username, room_id: room.id, room_title: room.title });
+  }
+
+  // Award any achievements unlocked by the new points / completion
+  const newlyEarned = checkAchievements(req.user.id);
+
+  res.json({
+    correct: true,
+    points: question.points,
+    roomCompleted,
+    newlyEarned: newlyEarned.map((a) => ({ name: a.name, icon: a.icon, description: a.description, badge_type: a.badge_type })),
+  });
+});
+
+// All achievements with the current user's earned status
+app.get('/api/achievements', (req, res) => {
+  const all = query('SELECT * FROM achievements ORDER BY badge_type, points_required, labs_required');
+
+  const token = req.headers.authorization?.split(' ')[1];
+  let userId = null;
+  if (token) {
+    try { userId = jwt.verify(token, JWT_SECRET).id; } catch { /* ignore */ }
+  }
+
+  let earnedIds = [];
+  if (userId) {
+    earnedIds = query('SELECT achievement_id, earned_at FROM user_achievements WHERE user_id = ?', [userId]);
+  }
+  const earnedMap = Object.fromEntries(earnedIds.map((e) => [e.achievement_id, e.earned_at]));
+
+  res.json(all.map((a) => ({
+    ...a,
+    earned: a.id in earnedMap,
+    earned_at: earnedMap[a.id] || null,
+  })));
+});
+
+// ============ INTERACTIVE LABS (simulated terminal) ============
+app.get('/api/interactive', (req, res) => {
+  const summaries = interactiveLabs.labs.map(interactiveLabs.toSummary);
+
+  const token = req.headers.authorization?.split(' ')[1];
+  let userId = null;
+  if (token) { try { userId = jwt.verify(token, JWT_SECRET).id; } catch { /* ignore */ } }
+
+  if (userId) {
+    summaries.forEach((s) => {
+      const done = getOne(
+        'SELECT 1 FROM room_progress WHERE user_id = ? AND room_id = ? AND question_id = ?',
+        [userId, 1000 + s.id, 'flag']
+      );
+      s.completed = !!done;
+    });
+  }
+  res.json(summaries);
+});
+
+app.get('/api/interactive/:id', (req, res) => {
+  const lab = interactiveLabs.getLabById(req.params.id);
+  if (!lab) return res.status(404).json({ error: 'Lab not found' });
+  res.json(interactiveLabs.toPublic(lab));
+});
+
+// Run a command against the lab's virtual filesystem (safe, read-only, no host access)
+app.post('/api/interactive/:id/exec', auth, (req, res) => {
+  const lab = interactiveLabs.getLabById(req.params.id);
+  if (!lab) return res.status(404).json({ error: 'Lab not found' });
+  const { command } = req.body;
+  if (typeof command !== 'string' || command.length > 500) {
+    return res.status(400).json({ error: 'Invalid command' });
+  }
+  const output = interactiveLabs.execCommand(lab, command);
+  res.json({ output });
+});
+
+// Submit the flag for an interactive lab
+app.post('/api/interactive/:id/flag', auth, (req, res) => {
+  const lab = interactiveLabs.getLabById(req.params.id);
+  if (!lab) return res.status(404).json({ error: 'Lab not found' });
+  const { flag } = req.body;
+
+  const roomKey = 1000 + lab.id; // namespace interactive labs in room_progress
+  const already = getOne(
+    'SELECT 1 FROM room_progress WHERE user_id = ? AND room_id = ? AND question_id = ?',
+    [req.user.id, roomKey, 'flag']
+  );
+  if (already) return res.json({ correct: true, alreadySolved: true, points: 0 });
+
+  if (String(flag || '').trim() !== lab.flag) {
+    return res.json({ correct: false });
+  }
+
+  run('INSERT OR IGNORE INTO room_progress (user_id, room_id, question_id, points) VALUES (?, ?, ?, ?)',
+    [req.user.id, roomKey, 'flag', lab.points]);
+  run('UPDATE users SET points = points + ?, labs_completed = labs_completed + 1 WHERE id = ?', [lab.points, req.user.id]);
+  const newlyEarned = checkAchievements(req.user.id);
+  io.emit('interactive_completed', { user_id: req.user.id, username: req.user.username, lab_id: lab.id, lab_title: lab.title });
+
+  res.json({
+    correct: true,
+    points: lab.points,
+    newlyEarned: newlyEarned.map((a) => ({ name: a.name, icon: a.icon, description: a.description, badge_type: a.badge_type })),
+  });
 });
 
 app.get('/api/users/leaderboard', (req, res) => {
-  res.json(db.prepare('SELECT id, username, points, labs_completed, avatar, team_id FROM users ORDER BY points DESC LIMIT 50').all());
+  res.json(query('SELECT id, username, points, labs_completed, avatar, team_id FROM users ORDER BY points DESC LIMIT 50'));
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '4.0.0', production: IS_PRODUCTION, docker: docker ? 'available' : 'unavailable' });
+  res.json({ status: 'ok', version: '4.0.0', docker: docker ? 'available' : 'unavailable' });
 });
 
-console.log(`
+// Start
+initDB().then(() => {
+  console.log(`
 ╔═══════════════════════════════════════════════════════════════╗
-║        Blue Team Lab Platform - Phase 4 (Production)       ║
+║        Blue Team Lab Platform - Phase 4 Server            ║
 ╠═══════════════════════════════════════════════════════════════╣
-║  Version: 4.0.0 (Production Ready                         ║
-║  Port: ${PORT}                                                 ║
-║  Mode: ${IS_PRODUCTION ? 'PRODUCTION' : 'DEVELOPMENT'}                                  ║
+║  Version: 4.0.0                                        ║
+║  Port: ${PORT}                                              ║
 ╚═══════════════════════════════════════════════════════════════╝
 `);
-
-app.listen(PORT, () => console.log(`[+] Server running on port ${PORT}`));
+  server.listen(PORT, () => console.log(`[+] Server running on port ${PORT}`));
+}).catch(e => {
+  console.error('Failed to initialize DB:', e);
+  process.exit(1);
+});

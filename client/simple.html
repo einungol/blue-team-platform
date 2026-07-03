@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blue Team Lab - Test</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; background: #0a0a12; color: #fff; padding: 20px; }
+    h1 { color: #00d4aa; text-align: center; margin-bottom: 30px; }
+    .btn { background: #00d4aa; color: #000; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; margin: 5px; }
+    .btn:hover { background: #00ff88; }
+    .lab { background: #1a1a2e; padding: 20px; margin: 10px 0; border-radius: 10px; }
+    .lab h3 { color: #00d4aa; }
+    .lab p { color: #888; margin: 10px 0; }
+    .points { color: #ffd700; font-weight: bold; }
+    #login-area, #main-area { max-width: 800px; margin: 0 auto; }
+    input { padding: 12px; width: 200px; margin: 5px; }
+    .error { color: #ff4444; margin: 10px 0; }
+    .success { color: #00ff88; margin: 10px 0; }
+    .hint { background: #333; padding: 10px; margin-top: 10px; border-radius: 5px; display: none; }
+    .hint.show { display: block; }
+  </style>
+</head>
+<body>
+
+  <h1>🎯 Blue Team Lab Platform</h1>
+
+  <!-- Login Area -->
+  <div id="login-area">
+    <div style="text-align: center;">
+      <h2>Login</h2>
+      <input type="text" id="username" placeholder="Username"><br>
+      <input type="password" id="password" placeholder="Password"><br>
+      <button class="btn" onclick="login()">Sign In</button>
+      <button class="btn" onclick="register()">Register</button>
+      <p id="login-msg"></p>
+    </div>
+  </div>
+
+  <!-- Main Area -->
+  <div id="main-area" style="display:none;">
+    <div style="text-align: center; margin-bottom: 20px;">
+      <span id="user-info" style="color: #00d4aa; font-size: 20px;"></span>
+      <button class="btn" onclick="logout()">Logout</button>
+    </div>
+
+    <h2>📚 Available Labs</h2>
+    <div id="labs-container"></div>
+  </div>
+
+  <script>
+    const API = 'http://localhost:3001';
+    let token = localStorage.getItem('token');
+    let currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+
+    // Check if logged in
+    if (token && currentUser) {
+      showMain();
+      loadLabs();
+    }
+
+    async function login() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      try {
+        const res = await fetch(API + '/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          token = data.token;
+          currentUser = data.user;
+          localStorage.setItem('token', token);
+          localStorage.setItem('user', JSON.stringify(currentUser));
+          showMain();
+          loadLabs();
+        } else {
+          document.getElementById('login-msg').innerHTML = '<p class="error">' + data.error + '</p>';
+        }
+      } catch (e) {
+        document.getElementById('login-msg').innerHTML = '<p class="error">Cannot connect to server. Make sure server is running!</p>';
+      }
+    }
+
+    async function register() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      try {
+        const res = await fetch(API + '/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, email: username + '@test.com', password })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          token = data.token;
+          currentUser = data.user;
+          localStorage.setItem('token', token);
+          localStorage.setItem('user', JSON.stringify(currentUser));
+          showMain();
+          loadLabs();
+        } else {
+          document.getElementById('login-msg').innerHTML = '<p class="error">' + data.error + '</p>';
+        }
+      } catch (e) {
+        document.getElementById('login-msg').innerHTML = '<p class="error">Cannot connect to server!</p>';
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      location.reload();
+    }
+
+    function showMain() {
+      document.getElementById('login-area').style.display = 'none';
+      document.getElementById('main-area').style.display = 'block';
+      document.getElementById('user-info').textContent = 'Welcome, ' + currentUser.username + ' (' + currentUser.points + ' pts)';
+    }
+
+    async function loadLabs() {
+      try {
+        const res = await fetch(API + '/api/labs');
+        const labs = await res.json();
+
+        let html = '';
+        labs.forEach(lab => {
+          html += `
+            <div class="lab">
+              <h3>${lab.name}</h3>
+              <p>${lab.description}</p>
+              <p>Difficulty: <span style="color:${lab.difficulty === 'easy' ? '#2ed573' : lab.difficulty === 'medium' ? '#ffa502' : '#ff4757'}">${lab.difficulty}</span> | Points: <span class="points">${lab.points}</span></p>
+              <button class="btn" onclick="showHint(${lab.id}, '${lab.hint}')">Show Hint</button>
+              <button class="btn" onclick="submitFlag(${lab.id})">Submit Flag</button>
+              <div class="hint" id="hint-${lab.id}">💡 ${lab.hint}</div>
+            </div>
+          `;
+        });
+
+        document.getElementById('labs-container').innerHTML = html;
+      } catch (e) {
+        document.getElementById('labs-container').innerHTML = '<p class="error">Cannot load labs. Make sure server is running!</p>';
+      }
+    }
+
+    function showHint(id, hint) {
+      document.getElementById('hint-' + id).classList.toggle('show');
+    }
+
+    async function submitFlag(labId) {
+      const flag = prompt('Enter flag:');
+      if (!flag) return;
+
+      try {
+        const res = await fetch(API + '/api/labs/' + labId + '/flag', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token
+          },
+          body: JSON.stringify({ flag })
+        });
+        const data = await res.json();
+        alert(data.message);
+        if (data.points > 0) {
+          // Update points
+          currentUser.points += data.points;
+          localStorage.setItem('user', JSON.stringify(currentUser));
+          document.getElementById('user-info').textContent = 'Welcome, ' + currentUser.username + ' (' + currentUser.points + ' pts)';
+        }
+      } catch (e) {
+        alert('Error submitting flag!');
+      }
+    }
+  </script>
+</body>
+</html>
