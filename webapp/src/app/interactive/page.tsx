@@ -44,7 +44,7 @@ export default function InteractiveListPage() {
   if (authLoading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-950">
-        <div className="text-emerald-400">กำลังโหลด...</div>
+        <div className="text-emerald-400">Loading...</div>
       </div>
     );
   }
@@ -56,12 +56,12 @@ export default function InteractiveListPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-white">Terminal Labs</h1>
           <p className="text-zinc-400">
-            ลงมือทำจริงในเทอร์มินัลจำลอง — ใช้คำสั่ง Linux (grep, cat, cut) วิเคราะห์ log แล้วหา flag เอง
+            Hands-on work in a simulated terminal — use Linux commands (grep, cat, cut) to analyze logs and capture the flag.
           </p>
         </div>
 
         {loading ? (
-          <div className="text-center text-zinc-400">กำลังโหลด...</div>
+          <div className="text-center text-zinc-400">Loading...</div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {labs.map((lab) => (
@@ -74,7 +74,7 @@ export default function InteractiveListPage() {
                       </div>
                       {lab.completed ? (
                         <span className="flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs text-emerald-400">
-                          <CheckCircle2 className="h-3 w-3" /> เสร็จแล้ว
+                          <CheckCircle2 className="h-3 w-3" /> Completed
                         </span>
                       ) : (
                         <span className={`rounded px-2 py-0.5 text-xs ${diffStyle[lab.difficulty]}`}>
@@ -95,7 +95,7 @@ export default function InteractiveListPage() {
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span className="flex items-center gap-1 text-emerald-400">
-                        เริ่มทำ <ChevronRight className="h-4 w-4" />
+                        Start <ChevronRight className="h-4 w-4" />
                       </span>
                       <span className="font-medium text-emerald-400">{lab.points} pts</span>
                     </div>

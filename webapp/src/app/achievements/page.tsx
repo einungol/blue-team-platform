@@ -54,7 +54,7 @@ export default function AchievementsPage() {
   if (authLoading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-950">
-        <div className="text-emerald-400">กำลังโหลด...</div>
+        <div className="text-emerald-400">Loading...</div>
       </div>
     );
   }
@@ -69,10 +69,10 @@ export default function AchievementsPage() {
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-white">Achievements</h1>
-            <p className="text-zinc-400">เก็บ badge จากการทำ rooms และสะสมคะแนน</p>
+            <p className="text-zinc-400">Earn badges by completing rooms and gaining points</p>
           </div>
           <div className="text-right">
-            <div className="text-sm text-zinc-500">ปลดล็อกแล้ว</div>
+            <div className="text-sm text-zinc-500">Unlocked</div>
             <div className="text-2xl font-bold text-emerald-400">
               {earnedCount}/{achievements.length}
             </div>
@@ -80,7 +80,7 @@ export default function AchievementsPage() {
         </div>
 
         {loading ? (
-          <div className="text-center text-zinc-400">กำลังโหลด...</div>
+          <div className="text-center text-zinc-400">Loading...</div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {achievements.map((a) => (
@@ -121,7 +121,7 @@ export default function AchievementsPage() {
                     </span>
                     {a.earned && (
                       <span className="flex items-center gap-1 text-[10px] text-emerald-400">
-                        <Award className="h-3 w-3" /> ได้แล้ว
+                        <Award className="h-3 w-3" /> Earned
                       </span>
                     )}
                   </div>

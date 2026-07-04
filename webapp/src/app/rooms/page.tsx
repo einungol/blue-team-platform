@@ -38,9 +38,9 @@ const difficultyStyles: Record<string, string> = {
 };
 
 const difficultyLabel: Record<string, string> = {
-  easy: 'ง่าย',
-  medium: 'ปานกลาง',
-  hard: 'ยาก',
+  easy: 'Easy',
+  medium: 'Medium',
+  hard: 'Hard',
 };
 
 export default function RoomsPage() {
@@ -67,7 +67,7 @@ export default function RoomsPage() {
   if (authLoading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-950">
-        <div className="text-emerald-400">กำลังโหลด...</div>
+        <div className="text-emerald-400">Loading...</div>
       </div>
     );
   }
@@ -89,7 +89,7 @@ export default function RoomsPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-white">Rooms</h1>
           <p className="text-zinc-400">
-            ห้องฝึกแบบ guided — มี artifact จริงให้วิเคราะห์ และตอบคำถามทีละข้อ
+            Guided rooms with real artifacts to analyze — answer questions step by step.
           </p>
         </div>
 
@@ -98,7 +98,7 @@ export default function RoomsPage() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
             <Input
-              placeholder="ค้นหา room หรือ tag..."
+              placeholder="Search rooms or tags..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="border-zinc-700 bg-zinc-800 pl-10 text-white placeholder:text-zinc-500"
@@ -109,15 +109,15 @@ export default function RoomsPage() {
             onChange={(e) => setDifficulty(e.target.value)}
             className="rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm text-white"
           >
-            <option value="all">ทุกระดับ</option>
-            <option value="easy">ง่าย</option>
-            <option value="medium">ปานกลาง</option>
-            <option value="hard">ยาก</option>
+            <option value="all">All levels</option>
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
           </select>
         </div>
 
         {loading ? (
-          <div className="text-center text-zinc-400">กำลังโหลด rooms...</div>
+          <div className="text-center text-zinc-400">Loading rooms...</div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filtered.map((room) => {
@@ -135,7 +135,7 @@ export default function RoomsPage() {
                         </div>
                         {room.completed ? (
                           <span className="flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs text-emerald-400">
-                            <CheckCircle2 className="h-3 w-3" /> เสร็จแล้ว
+                            <CheckCircle2 className="h-3 w-3" /> Completed
                           </span>
                         ) : (
                           <span
@@ -167,7 +167,7 @@ export default function RoomsPage() {
                       {/* Progress bar */}
                       <div className="mb-3">
                         <div className="mb-1 flex justify-between text-xs text-zinc-500">
-                          <span>{room.solvedQuestions || 0}/{room.totalQuestions} ข้อ</span>
+                          <span>{room.solvedQuestions || 0}/{room.totalQuestions} questions</span>
                           <span>{progress}%</span>
                         </div>
                         <div className="h-1.5 w-full rounded-full bg-zinc-800">
@@ -180,7 +180,7 @@ export default function RoomsPage() {
 
                       <div className="flex items-center justify-between text-xs text-zinc-500">
                         <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" /> {room.estimatedTime} นาที
+                          <Clock className="h-3 w-3" /> {room.estimatedTime} min
                         </span>
                         <span className="font-medium text-emerald-400">{room.points} pts</span>
                       </div>
@@ -193,7 +193,7 @@ export default function RoomsPage() {
         )}
 
         {!loading && filtered.length === 0 && (
-          <div className="py-12 text-center text-zinc-400">ไม่พบ room ที่ตรงกับการค้นหา</div>
+          <div className="py-12 text-center text-zinc-400">No rooms match your search</div>
         )}
       </main>
     </div>

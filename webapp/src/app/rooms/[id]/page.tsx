@@ -66,7 +66,7 @@ export default function RoomPlayerPage() {
   if (authLoading || !user || loading || !room) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-950">
-        <div className="text-emerald-400">กำลังโหลด room...</div>
+        <div className="text-emerald-400">Loading room...</div>
       </div>
     );
   }
@@ -88,7 +88,7 @@ export default function RoomPlayerPage() {
               href="/rooms"
               className="mb-3 flex w-fit items-center gap-2 text-sm text-zinc-400 hover:text-white"
             >
-              <ArrowLeft className="h-4 w-4" /> กลับไปยัง Rooms
+              <ArrowLeft className="h-4 w-4" /> Back to Rooms
             </Link>
             <div className="flex items-center justify-between gap-4">
               <div>
@@ -103,14 +103,14 @@ export default function RoomPlayerPage() {
               </div>
               <div className="flex items-center gap-6">
                 <div className="text-right">
-                  <div className="text-xs text-zinc-500">คะแนน</div>
+                  <div className="text-xs text-zinc-500">points</div>
                   <div className="text-lg font-bold text-emerald-400">
                     {earned}/{room.points}
                   </div>
                 </div>
                 <div className="w-40">
                   <div className="mb-1 flex justify-between text-xs text-zinc-500">
-                    <span>{solved.size}/{room.totalQuestions} ข้อ</span>
+                    <span>{solved.size}/{room.totalQuestions} questions</span>
                     <span>{progress}%</span>
                   </div>
                   <div className="h-2 w-full rounded-full bg-zinc-800">
@@ -130,8 +130,8 @@ export default function RoomPlayerPage() {
           <div className="mx-6 mt-6 flex items-center gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4">
             <Trophy className="h-6 w-6 text-emerald-400" />
             <div>
-              <p className="font-semibold text-emerald-400">เยี่ยมมาก! คุณทำ room นี้ครบทุกข้อแล้ว 🎉</p>
-              <p className="text-sm text-zinc-400">ได้รับ {room.points} คะแนนเต็ม</p>
+              <p className="font-semibold text-emerald-400">Great work! You completed every question in this room 🎉</p>
+              <p className="text-sm text-zinc-400">earned {room.points} full points</p>
             </div>
           </div>
         )}
@@ -245,7 +245,7 @@ function QuestionCard({
 
         {solved ? (
           <div className="flex items-center gap-2 rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400">
-            <CheckCircle2 className="h-4 w-4" /> ตอบถูกแล้ว
+            <CheckCircle2 className="h-4 w-4" /> Solved
           </div>
         ) : (
           <>
@@ -254,7 +254,7 @@ function QuestionCard({
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && submit()}
-                placeholder="พิมพ์คำตอบ..."
+                placeholder="Type your answer..."
                 className={`border-zinc-700 bg-zinc-800 font-mono text-white ${
                   wrong ? 'border-red-500' : ''
                 }`}
@@ -264,13 +264,13 @@ function QuestionCard({
                 disabled={submitting || !value.trim()}
                 className="bg-emerald-600 hover:bg-emerald-700"
               >
-                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'ส่ง'}
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Submit'}
               </Button>
             </div>
 
             {wrong && (
               <p className="mt-2 flex items-center gap-1 text-xs text-red-400">
-                <X className="h-3 w-3" /> ยังไม่ถูก ลองอีกครั้ง
+                <X className="h-3 w-3" /> Not quite, try again
               </p>
             )}
 
@@ -286,7 +286,7 @@ function QuestionCard({
                     onClick={() => setShowHint(true)}
                     className="flex items-center gap-1 text-xs text-zinc-500 hover:text-yellow-400"
                   >
-                    <Lightbulb className="h-3.5 w-3.5" /> ดู hint
+                    <Lightbulb className="h-3.5 w-3.5" /> Show hint
                   </button>
                 )}
               </div>

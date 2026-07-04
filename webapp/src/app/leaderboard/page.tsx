@@ -31,7 +31,7 @@ export default function LeaderboardPage() {
   if (authLoading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-950">
-        <div className="text-emerald-400">กำลังโหลด...</div>
+        <div className="text-emerald-400">Loading...</div>
       </div>
     );
   }
@@ -44,24 +44,24 @@ export default function LeaderboardPage() {
       <main className="flex-1 p-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-white">Leaderboard</h1>
-          <p className="text-zinc-400">อันดับผู้เล่นและทีม</p>
+          <p className="text-zinc-400">Player and team rankings</p>
         </div>
 
         {loading ? (
-          <div className="text-center text-zinc-400">กำลังโหลด...</div>
+          <div className="text-center text-zinc-400">Loading...</div>
         ) : (
           <Card className="border-zinc-800 bg-zinc-900/50">
             <CardHeader>
-              <CardTitle className="text-white">อันดับผู้เล่น</CardTitle>
+              <CardTitle className="text-white">Player Rankings</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-zinc-800 text-left text-sm text-zinc-400">
                     <th className="px-4 py-3 font-medium">#</th>
-                    <th className="px-4 py-3 font-medium">ผู้ใช้</th>
-                    <th className="px-4 py-3 font-medium">ทีม</th>
-                    <th className="px-4 py-3 font-medium text-right">คะแนน</th>
+                    <th className="px-4 py-3 font-medium">User</th>
+                    <th className="px-4 py-3 font-medium">Team</th>
+                    <th className="px-4 py-3 font-medium text-right">points</th>
                     <th className="px-4 py-3 font-medium text-right">Labs</th>
                   </tr>
                 </thead>
@@ -111,7 +111,7 @@ export default function LeaderboardPage() {
 
         {!loading && leaderboard.length === 0 && (
           <div className="text-center py-12 text-zinc-400">
-            ยังไม่มีข้อมูล
+            No data yet
           </div>
         )}
       </main>

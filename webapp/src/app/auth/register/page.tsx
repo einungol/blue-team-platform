@@ -24,7 +24,7 @@ export default function RegisterPage() {
     setError('');
 
     if (password !== confirmPassword) {
-      setError('รหัสผ่านไม่ตรงกัน');
+      setError('Passwords do not match');
       return;
     }
 
@@ -34,7 +34,7 @@ export default function RegisterPage() {
       await register(username, email, password);
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.message || 'สมัครสมาชิกไม่สำเร็จ');
+      setError(err.message || 'Registration failed');
     } finally {
       setLoading(false);
     }
@@ -44,9 +44,9 @@ export default function RegisterPage() {
     <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-4">
       <Card className="w-full max-w-md border-zinc-800 bg-zinc-900">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl text-white">สมัครสมาชิก</CardTitle>
+          <CardTitle className="text-2xl text-white">Create account</CardTitle>
           <CardDescription className="text-zinc-400">
-            สร้างบัญชีใหม่เพื่อเข้าใช้งาน
+            Sign up to start training
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -59,7 +59,7 @@ export default function RegisterPage() {
 
             <div className="space-y-2">
               <Label htmlFor="username" className="text-zinc-300">
-                ชื่อผู้ใช้
+                Username
               </Label>
               <Input
                 id="username"
@@ -74,7 +74,7 @@ export default function RegisterPage() {
 
             <div className="space-y-2">
               <Label htmlFor="email" className="text-zinc-300">
-                อีเมล
+                Email
               </Label>
               <Input
                 id="email"
@@ -89,14 +89,14 @@ export default function RegisterPage() {
 
             <div className="space-y-2">
               <Label htmlFor="password" className="text-zinc-300">
-                รหัสผ่าน
+                Password
               </Label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="********"
                 required
                 className="border-zinc-700 bg-zinc-800 text-white placeholder:text-zinc-500"
               />
@@ -104,14 +104,14 @@ export default function RegisterPage() {
 
             <div className="space-y-2">
               <Label htmlFor="confirmPassword" className="text-zinc-300">
-                ยืนยันรหัสผ่าน
+                Confirm password
               </Label>
               <Input
                 id="confirmPassword"
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="********"
                 required
                 className="border-zinc-700 bg-zinc-800 text-white placeholder:text-zinc-500"
               />
@@ -122,14 +122,14 @@ export default function RegisterPage() {
               className="w-full bg-emerald-600 hover:bg-emerald-700"
               disabled={loading}
             >
-              {loading ? 'กำลังสมัคร...' : 'สมัครสมาชิก'}
+              {loading ? 'Creating account...' : 'Create account'}
             </Button>
           </form>
 
           <div className="mt-4 text-center text-sm text-zinc-400">
-            มีบัญชีอยู่แล้ว?{' '}
+            Already have an account?{' '}
             <Link href="/auth/login" className="text-emerald-400 hover:underline">
-              เข้าสู่ระบบ
+              Sign in
             </Link>
           </div>
         </CardContent>

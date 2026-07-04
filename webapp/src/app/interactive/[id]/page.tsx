@@ -137,12 +137,12 @@ export default function InteractiveLabPage() {
       const res = await api.submitInteractiveFlag(labId, flag);
       if (res.correct) {
         setSolved(true);
-        setFlagResult({ ok: true, msg: `ถูกต้อง! ได้รับ ${res.points || 0} คะแนน 🎉` });
+        setFlagResult({ ok: true, msg: `Correct! You earned ${res.points || 0} points 🎉` });
       } else {
-        setFlagResult({ ok: false, msg: 'flag ไม่ถูกต้อง ลองวิเคราะห์ log อีกครั้ง' });
+        setFlagResult({ ok: false, msg: 'Incorrect flag — analyze the logs again' });
       }
     } catch {
-      setFlagResult({ ok: false, msg: 'เกิดข้อผิดพลาด' });
+      setFlagResult({ ok: false, msg: 'Something went wrong' });
     } finally {
       setSubmitting(false);
     }
@@ -151,7 +151,7 @@ export default function InteractiveLabPage() {
   if (authLoading || !user || loading || !lab) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-950">
-        <div className="text-emerald-400">กำลังโหลด lab...</div>
+        <div className="text-emerald-400">Loading lab...</div>
       </div>
     );
   }
@@ -164,7 +164,7 @@ export default function InteractiveLabPage() {
           href="/interactive"
           className="mb-4 flex w-fit items-center gap-2 text-sm text-zinc-400 hover:text-white"
         >
-          <ArrowLeft className="h-4 w-4" /> กลับไปยัง Terminal Labs
+          <ArrowLeft className="h-4 w-4" /> Back to Terminal Labs
         </Link>
 
         <div className="mb-6">
@@ -235,7 +235,7 @@ export default function InteractiveLabPage() {
               </div>
             </div>
             <p className="mt-2 text-xs text-zinc-500">
-              💡 ลองพิมพ์ <code className="text-emerald-400">help</code> เพื่อดูคำสั่งทั้งหมด · ใช้ ↑ ↓ เพื่อเรียกคำสั่งก่อนหน้า · pipe ได้ เช่น <code className="text-emerald-400">grep 401 access.log | wc -l</code>
+              💡 Type <code className="text-emerald-400">help</code> to see all commands · use ↑ ↓ for command history · pipes work, e.g. <code className="text-emerald-400">grep 401 access.log | wc -l</code>
             </p>
           </div>
 
@@ -245,7 +245,7 @@ export default function InteractiveLabPage() {
               <CardContent className="p-5">
                 <div className="mb-3 flex items-center gap-2">
                   <Target className="h-4 w-4 text-emerald-400" />
-                  <h3 className="font-semibold text-white">ภารกิจ</h3>
+                  <h3 className="font-semibold text-white">Objectives</h3>
                 </div>
                 <ol className="space-y-2">
                   {lab.objectives.map((obj, i) => (
@@ -269,7 +269,7 @@ export default function InteractiveLabPage() {
 
                 {solved ? (
                   <div className="flex items-center gap-2 rounded-md bg-emerald-500/10 p-3 text-sm text-emerald-400">
-                    <CheckCircle2 className="h-5 w-5" /> เสร็จสมบูรณ์! ได้รับ {lab.points} คะแนน
+                    <CheckCircle2 className="h-5 w-5" /> Completed! You earned {lab.points} points
                   </div>
                 ) : (
                   <>
@@ -286,7 +286,7 @@ export default function InteractiveLabPage() {
                         disabled={submitting || !flag.trim()}
                         className="bg-emerald-600 hover:bg-emerald-700"
                       >
-                        {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'ส่ง'}
+                        {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Submit'}
                       </Button>
                     </div>
                     {flagResult && (

@@ -26,7 +26,7 @@ export default function LoginPage() {
       await login(username, password);
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.message || 'เข้าสู่ระบบไม่สำเร็จ');
+      setError(err.message || 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -36,9 +36,9 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-4">
       <Card className="w-full max-w-md border-zinc-800 bg-zinc-900">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl text-white">เข้าสู่ระบบ</CardTitle>
+          <CardTitle className="text-2xl text-white">Sign in</CardTitle>
           <CardDescription className="text-zinc-400">
-            กรอกข้อมูลเพื่อเข้าใช้งาน Blue Team Platform
+            Enter your credentials to access the Blue Team Platform
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -51,7 +51,7 @@ export default function LoginPage() {
 
             <div className="space-y-2">
               <Label htmlFor="username" className="text-zinc-300">
-                ชื่อผู้ใช้
+                Username
               </Label>
               <Input
                 id="username"
@@ -66,14 +66,14 @@ export default function LoginPage() {
 
             <div className="space-y-2">
               <Label htmlFor="password" className="text-zinc-300">
-                รหัสผ่าน
+                Password
               </Label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="********"
                 required
                 className="border-zinc-700 bg-zinc-800 text-white placeholder:text-zinc-500"
               />
@@ -84,14 +84,14 @@ export default function LoginPage() {
               className="w-full bg-emerald-600 hover:bg-emerald-700"
               disabled={loading}
             >
-              {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
+              {loading ? 'Signing in...' : 'Sign in'}
             </Button>
           </form>
 
           <div className="mt-4 text-center text-sm text-zinc-400">
-            ยังไม่มีบัญชี?{' '}
+            Don&apos;t have an account?{' '}
             <Link href="/auth/register" className="text-emerald-400 hover:underline">
-              สมัครสมาชิก
+              Sign up
             </Link>
           </div>
         </CardContent>

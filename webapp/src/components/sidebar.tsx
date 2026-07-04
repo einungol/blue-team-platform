@@ -16,13 +16,13 @@ import {
 } from 'lucide-react';
 
 const navItems = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'แดชบอร์ด' },
+  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/rooms', icon: DoorOpen, label: 'Rooms' },
   { href: '/interactive', icon: SquareTerminal, label: 'Terminal Labs' },
   { href: '/achievements', icon: Award, label: 'Achievements' },
-  { href: '/leaderboard', icon: Trophy, label: 'อันดับ' },
-  { href: '/teams', icon: Users, label: 'ทีม' },
-  { href: '/profile', icon: User, label: 'โปรไฟล์' },
+  { href: '/leaderboard', icon: Trophy, label: 'Leaderboard' },
+  { href: '/teams', icon: Users, label: 'Teams' },
+  { href: '/profile', icon: User, label: 'Profile' },
 ];
 
 export function Sidebar() {
@@ -62,7 +62,7 @@ export function Sidebar() {
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
         >
           <LogOut className="h-4 w-4" />
-          ออกจากระบบ
+          Logout
         </button>
       </div>
     </aside>

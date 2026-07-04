@@ -50,7 +50,7 @@ export default function DashboardPage() {
   if (authLoading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-950">
-        <div className="text-emerald-400">กำลังโหลด...</div>
+        <div className="text-emerald-400">Loading...</div>
       </div>
     );
   }
@@ -69,11 +69,11 @@ export default function DashboardPage() {
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white">ยินดีต้อนรับ, {user.username}!</h1>
-            <p className="text-zinc-400">มาเรียนรู้ความปลอดภัยทางไซเบอร์กันเถอะ</p>
+            <h1 className="text-2xl font-bold text-white">Welcome, {user.username}!</h1>
+            <p className="text-zinc-400">Let's sharpen your Blue Team skills</p>
           </div>
           <div className="text-right">
-            <div className="text-sm text-zinc-400">คะแนนรวม</div>
+            <div className="text-sm text-zinc-400">Total points</div>
             <div className="text-2xl font-bold text-emerald-400">{user.points}</div>
           </div>
         </div>
@@ -82,7 +82,7 @@ export default function DashboardPage() {
         <div className="mb-6 grid gap-4 md:grid-cols-4">
           <Card className="border-zinc-800 bg-zinc-900/50">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-zinc-400">Rooms สำเร็จ</CardTitle>
+              <CardTitle className="text-sm font-medium text-zinc-400">Rooms completed</CardTitle>
               <DoorOpen className="h-4 w-4 text-emerald-400" />
             </CardHeader>
             <CardContent>
@@ -92,7 +92,7 @@ export default function DashboardPage() {
 
           <Card className="border-zinc-800 bg-zinc-900/50">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-zinc-400">ความคืบหน้า</CardTitle>
+              <CardTitle className="text-sm font-medium text-zinc-400">Progress</CardTitle>
               <Zap className="h-4 w-4 text-emerald-400" />
             </CardHeader>
             <CardContent>
@@ -115,11 +115,11 @@ export default function DashboardPage() {
 
           <Card className="border-zinc-800 bg-zinc-900/50">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-zinc-400">ทีม</CardTitle>
+              <CardTitle className="text-sm font-medium text-zinc-400">Team</CardTitle>
               <Users className="h-4 w-4 text-blue-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-white">{user.team_id ? 'มีทีม' : '-'}</div>
+              <div className="text-3xl font-bold text-white">{user.team_id ? 'In a team' : '-'}</div>
             </CardContent>
           </Card>
         </div>
@@ -127,9 +127,9 @@ export default function DashboardPage() {
         {/* Rooms */}
         <div className="mb-6">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-white">Rooms แนะนำ</h2>
+            <h2 className="text-xl font-bold text-white">Featured Rooms</h2>
             <Link href="/rooms" className="flex items-center text-sm text-emerald-400 hover:underline">
-              ดูทั้งหมด <ChevronRight className="h-4 w-4" />
+              View all <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
 
@@ -164,7 +164,7 @@ export default function DashboardPage() {
                       </h3>
                       <p className="mb-3 line-clamp-2 text-sm text-zinc-400">{room.description}</p>
                       <div className="mb-1 flex justify-between text-xs text-zinc-500">
-                        <span>{room.solvedQuestions || 0}/{room.totalQuestions} ข้อ</span>
+                        <span>{room.solvedQuestions || 0}/{room.totalQuestions} questions</span>
                         <span className="text-emerald-400">{room.points} pts</span>
                       </div>
                       <div className="h-1.5 w-full rounded-full bg-zinc-800">
@@ -183,7 +183,7 @@ export default function DashboardPage() {
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-xl font-bold text-white">Leaderboard</h2>
             <Link href="/leaderboard" className="flex items-center text-sm text-emerald-400 hover:underline">
-              ดูทั้งหมด <ChevronRight className="h-4 w-4" />
+              View all <ChevronRight className="h-4 w-4" />
             </Link>
           </div>
 
@@ -193,8 +193,8 @@ export default function DashboardPage() {
                 <thead>
                   <tr className="border-b border-zinc-800 text-left text-sm text-zinc-400">
                     <th className="px-4 py-3 font-medium">#</th>
-                    <th className="px-4 py-3 font-medium">ผู้ใช้</th>
-                    <th className="px-4 py-3 font-medium text-right">คะแนน</th>
+                    <th className="px-4 py-3 font-medium">User</th>
+                    <th className="px-4 py-3 font-medium text-right">points</th>
                   </tr>
                 </thead>
                 <tbody>

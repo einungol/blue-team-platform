@@ -59,7 +59,7 @@ export default function TeamsPage() {
     try {
       await (await import('@/lib/api')).api.joinTeam(teamId);
       fetchTeams();
-      alert('เข้าร่วมทีมสำเร็จ!');
+      alert('Joined the team!');
     } catch (err: any) {
       alert(err.message);
     }
@@ -68,7 +68,7 @@ export default function TeamsPage() {
   if (authLoading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-950">
-        <div className="text-emerald-400">กำลังโหลด...</div>
+        <div className="text-emerald-400">Loading...</div>
       </div>
     );
   }
@@ -81,40 +81,40 @@ export default function TeamsPage() {
       <main className="flex-1 p-6">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white">ทีม</h1>
-            <p className="text-zinc-400">สร้างหรือเข้าร่วมทีม</p>
+            <h1 className="text-2xl font-bold text-white">Teams</h1>
+            <p className="text-zinc-400">Create or join a team</p>
           </div>
           {!user.team_id && (
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
               <DialogTrigger asChild>
                 <Button className="bg-emerald-600 hover:bg-emerald-700">
                   <Plus className="mr-2 h-4 w-4" />
-                  สร้างทีม
+                  Create team
                 </Button>
               </DialogTrigger>
               <DialogContent className="border-zinc-800 bg-zinc-900">
                 <DialogHeader>
-                  <DialogTitle className="text-white">สร้างทีมใหม่</DialogTitle>
+                  <DialogTitle className="text-white">Create a new team</DialogTitle>
                   <DialogDescription className="text-zinc-400">
-                    สร้างทีมของคุณเองและเชิญเพื่อนร่วมทีม
+                    Create your own team and invite members
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-sm text-zinc-300">ชื่อทีม</label>
+                    <label className="text-sm text-zinc-300">Team name</label>
                     <Input
                       value={teamName}
                       onChange={(e) => setTeamName(e.target.value)}
-                      placeholder="ชื่อทีม"
+                      placeholder="Team name"
                       className="border-zinc-700 bg-zinc-800 text-white"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm text-zinc-300">คำอธิบาย</label>
+                    <label className="text-sm text-zinc-300">Description</label>
                     <Input
                       value={teamDesc}
                       onChange={(e) => setTeamDesc(e.target.value)}
-                      placeholder="คำอธิบายทีม"
+                      placeholder="Team description"
                       className="border-zinc-700 bg-zinc-800 text-white"
                     />
                   </div>
@@ -123,7 +123,7 @@ export default function TeamsPage() {
                     disabled={creating || !teamName.trim()}
                     className="w-full bg-emerald-600 hover:bg-emerald-700"
                   >
-                    {creating ? 'กำลังสร้าง...' : 'สร้างทีม'}
+                    {creating ? 'Creating...' : 'Create team'}
                   </Button>
                 </div>
               </DialogContent>
@@ -136,9 +136,9 @@ export default function TeamsPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-emerald-400">ทีมของคุณ</p>
+                  <p className="text-sm text-emerald-400">Your team</p>
                   <p className="text-lg font-bold text-white">
-                    {teams.find((t) => t.id === user.team_id)?.name || 'ทีมของคุณ'}
+                    {teams.find((t) => t.id === user.team_id)?.name || 'Your team'}
                   </p>
                 </div>
                 <Users className="h-8 w-8 text-emerald-400" />
@@ -148,7 +148,7 @@ export default function TeamsPage() {
         )}
 
         {loading ? (
-          <div className="text-center text-zinc-400">กำลังโหลด...</div>
+          <div className="text-center text-zinc-400">Loading...</div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {teams.map((team) => (
@@ -159,8 +159,8 @@ export default function TeamsPage() {
                 <CardContent>
                   <p className="mb-3 text-sm text-zinc-400">{team.description}</p>
                   <div className="mb-3 flex items-center justify-between text-sm">
-                    <span className="text-zinc-500">หัวหน้าทีม: {team.leader_name}</span>
-                    <span className="text-zinc-500">สมาชิก: {team.members_count}</span>
+                    <span className="text-zinc-500">Leader: {team.leader_name}</span>
+                    <span className="text-zinc-500">Members: {team.members_count}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="font-medium text-emerald-400">{team.points} pts</span>
@@ -172,7 +172,7 @@ export default function TeamsPage() {
                         className="border-zinc-700 text-zinc-300 hover:bg-zinc-800"
                       >
                         <UserPlus className="mr-1 h-3 w-3" />
-                        เข้าร่วม
+                        Join
                       </Button>
                     )}
                   </div>
@@ -184,7 +184,7 @@ export default function TeamsPage() {
 
         {!loading && teams.length === 0 && (
           <div className="text-center py-12 text-zinc-400">
-            ยังไม่มีทีม สร้างทีมแรกของคุณ!
+            No teams yet — create the first one!
           </div>
         )}
       </main>

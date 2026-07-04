@@ -47,7 +47,7 @@ export default function ProfilePage() {
   if (authLoading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-950">
-        <div className="text-emerald-400">กำลังโหลด...</div>
+        <div className="text-emerald-400">Loading...</div>
       </div>
     );
   }
@@ -68,15 +68,15 @@ export default function ProfilePage() {
       {/* Main Content */}
       <main className="flex-1 p-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-white">โปรไฟล์</h1>
-          <p className="text-zinc-400">จัดการข้อมูลส่วนตัว</p>
+          <h1 className="text-2xl font-bold text-white">Profile</h1>
+          <p className="text-zinc-400">Manage your personal information</p>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Profile Edit */}
           <Card className="border-zinc-800 bg-zinc-900/50">
             <CardHeader>
-              <CardTitle className="text-white">แก้ไขโปรไฟล์</CardTitle>
+              <CardTitle className="text-white">Edit profile</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Avatar Selection */}
@@ -99,7 +99,7 @@ export default function ProfilePage() {
                 <Input
                   value={avatar}
                   onChange={(e) => setAvatar(e.target.value)}
-                  placeholder="URL รูปภาพ"
+                  placeholder="Image URL"
                   className="border-zinc-700 bg-zinc-800 text-white"
                 />
               </div>
@@ -110,7 +110,7 @@ export default function ProfilePage() {
                 <textarea
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
-                  placeholder="แนะนำตัวเอง..."
+                  placeholder="Tell us about yourself..."
                   rows={4}
                   className="w-full rounded-md border border-zinc-700 bg-zinc-800 px-3 py-2 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 />
@@ -122,12 +122,12 @@ export default function ProfilePage() {
                 className="w-full bg-emerald-600 hover:bg-emerald-700"
               >
                 {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                บันทึก
+                Save
               </Button>
 
               {success && (
                 <div className="rounded-md bg-emerald-500/10 p-3 text-center text-sm text-emerald-400">
-                  บันทึกสำเร็จ!
+                  Saved!
                 </div>
               )}
             </CardContent>
@@ -136,7 +136,7 @@ export default function ProfilePage() {
           {/* User Info */}
           <Card className="border-zinc-800 bg-zinc-900/50">
             <CardHeader>
-              <CardTitle className="text-white">ข้อมูลผู้ใช้</CardTitle>
+              <CardTitle className="text-white">User info</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-4">
@@ -160,11 +160,11 @@ export default function ProfilePage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <Trophy className="h-4 w-4 text-zinc-500" />
-                  <span className="text-zinc-300">คะแนน: <span className="text-emerald-400 font-bold">{user.points}</span></span>
+                  <span className="text-zinc-300">Points: <span className="text-emerald-400 font-bold">{user.points}</span></span>
                 </div>
                 <div className="flex items-center gap-3">
                   <Target className="h-4 w-4 text-zinc-500" />
-                  <span className="text-zinc-300">Labs ที่ทำแล้ว: <span className="text-emerald-400 font-bold">{user.labs_completed}</span></span>
+                  <span className="text-zinc-300">Labs completed: <span className="text-emerald-400 font-bold">{user.labs_completed}</span></span>
                 </div>
                 {user.team_id && (
                   <div className="flex items-center gap-3">

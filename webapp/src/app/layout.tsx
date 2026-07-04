@@ -4,7 +4,7 @@ import { Providers } from './providers';
 
 export const metadata: Metadata = {
   title: 'Blue Team Platform - Cyber Security Training',
-  description: 'Platform ฝึกเขียนโค้ดด้านความปลอดภัย',
+  description: 'A hands-on Blue Team / SOC training platform — log analysis, phishing triage, memory forensics, SIEM, and more.',
 };
 
 export default function RootLayout({
@@ -13,7 +13,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="th" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <body className="font-sans">
         <Providers>{children}</Providers>
       </body>

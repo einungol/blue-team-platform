@@ -9,23 +9,23 @@ export default function HomePage() {
   const features = [
     {
       icon: Terminal,
-      title: 'Labs แบบ Interactive',
-      description: 'ฝึกเขียนโค้ดด้านความปลอดภัยผ่าน Lab ที่ออกแบบมาเพื่อให้เข้าใจแนวคิดจริงๆ',
+      title: 'Interactive Labs',
+      description: 'Practice defensive security through labs built around real forensic artifacts.',
     },
     {
       icon: Trophy,
-      title: 'แข่งขันแบบ Team',
-      description: 'สร้างทีมและแข่งขันกับทีมอื่นๆ เพื่อชิงตำแหน่ง Leaderboard',
+      title: 'Team Competition',
+      description: 'Create a team and compete with others on the leaderboard.',
     },
     {
       icon: Lock,
       title: 'Capture The Flag',
-      description: 'แก้โจทย์ CTF หลากหลายระดับความยาก พร้อมรับคะแนนและ Badge',
+      description: 'Solve CTF-style challenges across difficulty levels and earn points and badges.',
     },
     {
       icon: Bug,
       title: 'Learn by Doing',
-      description: 'เรียนรู้ผ่านการลงมือทำจริง ไม่ใช่แค่ทฤษฎี',
+      description: 'Learn by doing — hands-on, not just theory.',
     },
   ];
 
@@ -43,23 +43,23 @@ export default function HomePage() {
 
             <h1 className="mb-6 max-w-3xl text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl">
               Blue Team Platform
-              <span className="block text-emerald-400">ฝึกเขียนโค้ดด้านความปลอดภัย</span>
+              <span className="block text-emerald-400">Hands-on Blue Team Training</span>
             </h1>
 
             <p className="mb-8 max-w-2xl text-lg text-zinc-400">
-              แพลตฟอร์มสำหรับการเรียนรู้และฝึกฝนทักษะด้านความปลอดภัยทางไซเบอร์
-              ด้วย Lab แบบ Interactive และการแข่งขันแบบ Capture The Flag
+              A platform to learn and practice cyber security defensive skills
+              with interactive labs and Capture The Flag challenges.
             </p>
 
             <div className="flex flex-col gap-4 sm:flex-row">
               <Link href="/auth/login">
                 <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700">
-                  เริ่มต้นใช้งาน <ArrowRight className="ml-2 h-4 w-4" />
+                  Get Started <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
               <Link href="/labs">
                 <Button size="lg" variant="outline" className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white">
-                  ดู Labs <Code2 className="ml-2 h-4 w-4" />
+                  View Labs <Code2 className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
             </div>
@@ -71,8 +71,8 @@ export default function HomePage() {
       <section className="py-24">
         <div className="container mx-auto px-4">
           <div className="mb-12 text-center">
-            <h2 className="mb-4 text-3xl font-bold text-white">ฟีเจอร์สำคัญ</h2>
-            <p className="text-zinc-400">เครื่องมือที่จะช่วยให้คุณพัฒนาทักษะด้าน Security ได้อย่างมีประสิทธิภาพ</p>
+            <h2 className="mb-4 text-3xl font-bold text-white">Key Features</h2>
+            <p className="text-zinc-400">Everything you need to build practical security skills</p>
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -103,11 +103,11 @@ export default function HomePage() {
             </div>
             <div>
               <div className="mb-2 text-4xl font-bold text-emerald-400">1000+</div>
-              <div className="text-sm text-zinc-400">ผู้ใช้งาน</div>
+              <div className="text-sm text-zinc-400">Users</div>
             </div>
             <div>
               <div className="mb-2 text-4xl font-bold text-emerald-400">100+</div>
-              <div className="text-sm text-zinc-400">ทีมที่เข้าร่วม</div>
+              <div className="text-sm text-zinc-400">Teams</div>
             </div>
           </div>
         </div>
@@ -116,14 +116,14 @@ export default function HomePage() {
       {/* CTA Section */}
       <section className="py-24">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="mb-6 text-3xl font-bold text-white">พร้อมแล้วหรือยัง?</h2>
+          <h2 className="mb-6 text-3xl font-bold text-white">Ready to start?</h2>
           <p className="mb-8 text-lg text-zinc-400">
-            ร่วมเป็นส่วนหนึ่งของชุมชน Blue Team และพัฒนาทักษะความปลอดภัยทางไซเบอร์ไปด้วยกัน
+            Join the Blue Team community and grow your cyber security skills.
           </p>
           <div className="flex justify-center gap-4">
             <Link href="/auth/register">
               <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700">
-                สมัครสมาชิกฟรี
+                Sign up free
               </Button>
             </Link>
           </div>
@@ -133,7 +133,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="border-t border-zinc-800 py-8">
         <div className="container mx-auto px-4 text-center text-sm text-zinc-500">
-          <p>© 2026 Blue Team Platform. สร้างด้วย ❤️ สำหรับชุมชนคนไทย</p>
+          <p>© 2026 Blue Team Platform. Built as a portfolio project.</p>
         </div>
       </footer>
     </div>
