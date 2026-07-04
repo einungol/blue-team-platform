@@ -766,7 +766,434 @@ Watch for:
   ],
 };
 
-const rooms = [room1, room2, room3, room4, room5, room6];
+// ---------------------------------------------------------------------------
+// ROOM 7: Active Directory Forensics
+// ---------------------------------------------------------------------------
+const AD_EVENT_LOG = `EventID  Time              Account        Service/Detail              SourceIP       Notes
+4768     02:11:03          jdoe           krbtgt                       10.0.5.20      TGT requested (normal)
+4769     02:11:41          jdoe           MSSQLSvc/db01.corp.local      10.0.5.20      ST req, enc 0x17 (RC4!)
+4769     02:11:42          jdoe           HTTP/web01.corp.local         10.0.5.20      ST req, enc 0x17 (RC4!)
+4769     02:11:44          jdoe           CIFS/file01.corp.local        10.0.5.20      ST req, enc 0x17 (RC4!)
+4769     02:11:46          jdoe           MSSQLSvc/db02.corp.local      10.0.5.20      ST req, enc 0x17 (RC4!)
+4624     03:05:22          Administrator  Logon type 3                 10.0.5.20      DCSync source host
+4662     03:05:23          Administrator  Replication (DS-Replication-Get-Changes-All)  10.0.5.20  DCSYNC!
+4768     05:40:00          Administrator  krbtgt                       10.0.5.20      TGT lifetime 10 years (!)`;
+
+const room7 = {
+  slug: 'active-directory-forensics',
+  title: 'Active Directory Forensics',
+  description: 'A domain controller shows abnormal Kerberos activity. Trace a Kerberoasting attack, a DCSync, and a forged Golden Ticket from the AD event logs.',
+  difficulty: 'hard',
+  category: 'blue',
+  tags: ['Active Directory', 'Kerberos', 'Kerberoasting', 'DCSync', 'DFIR'],
+  icon: 'Network',
+  points: 95,
+  estimatedTime: 30,
+  tasks: [
+    {
+      id: 1,
+      title: 'Kerberoasting',
+      content: `## Scenario
+
+You are investigating **corp.local**'s domain controller after an alert on unusual Kerberos ticket requests.
+
+### Kerberos event IDs
+| Event | Meaning |
+|-------|---------|
+| **4768** | TGT (Ticket Granting Ticket) requested |
+| **4769** | Service ticket (TGS) requested |
+| **4662** | Directory Service access (replication) |
+
+### Kerberoasting
+An attacker requests **service tickets (4769)** for many **SPNs** (service accounts) with weak **RC4 encryption (0x17)** so they can crack them offline. A burst of 4769 with enc \`0x17\` from one user = Kerberoasting.`,
+      artifacts: [
+        { name: 'ad_events.log', type: 'log', content: AD_EVENT_LOG },
+      ],
+      questions: [
+        {
+          id: 'q1',
+          prompt: 'Which user account performed the Kerberoasting (burst of RC4 service-ticket requests)?',
+          answer: 'jdoe',
+          points: 15,
+          hint: 'Find the account with many 4769 events using enc 0x17 (RC4).',
+        },
+        {
+          id: 'q2',
+          prompt: 'What encryption type (hex value) indicates the weak RC4 tickets targeted for cracking?',
+          answer: '0x17',
+          points: 15,
+          hint: 'The Notes column shows enc 0x17 = RC4.',
+          accept: ['0x17', '17', 'rc4'],
+        },
+      ],
+    },
+    {
+      id: 2,
+      title: 'DCSync & Golden Ticket',
+      content: `## Escalation
+
+After the roasting, the attacker escalated. Two hallmark techniques appear:
+
+- **DCSync** — impersonating a DC to pull password hashes. Look for **Event 4662** with the **DS-Replication-Get-Changes-All** right from a non-DC host.
+- **Golden Ticket** — forging a TGT with the **krbtgt** hash. A tell-tale sign is a **4768** granting an absurd ticket lifetime (e.g. 10 years).`,
+      artifacts: [
+        { name: 'ad_events.log', type: 'log', content: AD_EVENT_LOG },
+      ],
+      questions: [
+        {
+          id: 'q3',
+          prompt: 'What is the Event ID that reveals the DCSync (replication) attack?',
+          answer: '4662',
+          points: 20,
+          hint: 'Directory Service access with the DS-Replication-Get-Changes-All right.',
+        },
+        {
+          id: 'q4',
+          prompt: 'Which account was used to perform the DCSync and forge the Golden Ticket?',
+          answer: 'Administrator',
+          points: 20,
+          hint: 'Same account appears in the 4662 replication event and the 10-year 4768.',
+          accept: ['administrator', 'admin'],
+        },
+        {
+          id: 'q5',
+          prompt: 'Golden Tickets are forged using the hash of which special account?',
+          answer: 'krbtgt',
+          points: 25,
+          hint: 'The KDC account whose hash signs all TGTs.',
+        },
+      ],
+    },
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// ROOM 8: Ransomware Incident Response
+// ---------------------------------------------------------------------------
+const RANSOM_TIMELINE = `Time   Host      Event
+08:02  HR-PC04   Email opened: "Invoice_Q1.zip" -> invoice.exe executed
+08:04  HR-PC04   4688: powershell.exe -enc (downloader)
+08:06  HR-PC04   Outbound TLS to 194.5.249.10:443 (C2)
+08:31  FILE-SRV  4624 logon from HR-PC04 (SMB, user hruser)
+08:33  FILE-SRV  vssadmin delete shadows /all  (backups destroyed)
+08:35  FILE-SRV  Mass file rename *.docx -> *.docx.LOCKD
+08:40  FILE-SRV  Ransom note dropped: HOW_TO_DECRYPT.txt
+09:15  BACKUP01  Offline backup intact (air-gapped, not reachable by attacker)`;
+
+const room8 = {
+  slug: 'ransomware-incident-response',
+  title: 'Ransomware Incident Response',
+  description: 'A ransomware outbreak is underway. Work the incident using the IR lifecycle: scope patient zero, identify the C2, and make the right containment and recovery decisions.',
+  difficulty: 'medium',
+  category: 'blue',
+  tags: ['Incident Response', 'Ransomware', 'IR Lifecycle', 'Containment'],
+  icon: 'ShieldAlert',
+  points: 85,
+  estimatedTime: 25,
+  tasks: [
+    {
+      id: 1,
+      title: 'Scope the Incident',
+      content: `## Scenario
+
+Users report files renamed to \`.LOCKD\` and a ransom note. You're the **Incident Commander**. Work the timeline on the right.
+
+### IR Lifecycle (NIST)
+1. **Preparation**
+2. **Detection & Analysis** ← you are here
+3. **Containment**
+4. **Eradication**
+5. **Recovery**
+6. **Lessons Learned**
+
+First: find **patient zero** (the first infected host) and the **initial access vector**.`,
+      artifacts: [
+        { name: 'incident_timeline.txt', type: 'log', content: RANSOM_TIMELINE },
+      ],
+      questions: [
+        {
+          id: 'q1',
+          prompt: 'Which host is patient zero (first infected)?',
+          answer: 'HR-PC04',
+          points: 15,
+          hint: 'The earliest event — an email attachment was executed there.',
+          accept: ['hr-pc04', 'HR-PC04'],
+        },
+        {
+          id: 'q2',
+          prompt: 'What was the initial access vector? (one phrase, e.g. "phishing email")',
+          answer: 'phishing email',
+          points: 15,
+          hint: 'The first event is an opened email attachment (Invoice_Q1.zip).',
+          accept: ['phishing email', 'phishing', 'email attachment', 'malicious attachment', 'phishing attachment'],
+        },
+        {
+          id: 'q3',
+          prompt: 'What is the C2 IP address the downloader connected to?',
+          answer: '194.5.249.10',
+          points: 15,
+          hint: 'Outbound TLS at 08:06.',
+        },
+      ],
+    },
+    {
+      id: 2,
+      title: 'Contain & Recover',
+      content: `## Decisions
+
+You've scoped it. Now make the **containment** and **recovery** calls.
+
+Key facts from the timeline:
+- Attacker deleted shadow copies on FILE-SRV
+- But **BACKUP01 is air-gapped and intact**
+
+Think about what a good Incident Commander does — isolate first, don't pay, restore from clean backups.`,
+      artifacts: [
+        { name: 'incident_timeline.txt', type: 'log', content: RANSOM_TIMELINE },
+      ],
+      questions: [
+        {
+          id: 'q4',
+          prompt: 'What command did the attacker run to destroy local backups? (the vssadmin command verb + object, e.g. "vssadmin delete shadows")',
+          answer: 'vssadmin delete shadows',
+          points: 15,
+          hint: 'Look at the 08:33 event on FILE-SRV.',
+          accept: ['vssadmin delete shadows', 'vssadmin delete shadows /all', 'delete shadows'],
+        },
+        {
+          id: 'q5',
+          prompt: 'For recovery, which host holds the clean, usable backup?',
+          answer: 'BACKUP01',
+          points: 15,
+          hint: 'The air-gapped host the attacker could not reach.',
+          accept: ['backup01', 'BACKUP01'],
+        },
+        {
+          id: 'q6',
+          prompt: 'Best-practice answer: should the organization pay the ransom? (yes/no)',
+          answer: 'no',
+          points: 10,
+          hint: 'With clean air-gapped backups and law-enforcement guidance, paying is discouraged.',
+          accept: ['no', 'n', 'do not pay', "don't pay"],
+        },
+      ],
+    },
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// ROOM 9: AWS / Cloud Log Analysis (CloudTrail)
+// ---------------------------------------------------------------------------
+const CLOUDTRAIL_LOG = `time       eventName                  userIdentity            sourceIP         params/notes
+14:02:10   ConsoleLogin               iam-user/devops         203.0.113.7      MFA=Yes, SUCCESS
+14:20:55   ConsoleLogin               iam-user/svc_ci         45.61.164.9      MFA=No,  SUCCESS (leaked key?)
+14:21:30   ListBuckets                iam-user/svc_ci         45.61.164.9
+14:22:01   GetObject                  iam-user/svc_ci         45.61.164.9      s3://corp-backups/customers.db
+14:22:44   CreateAccessKey            iam-user/svc_ci         45.61.164.9      new key for svc_ci (persistence)
+14:23:19   AttachUserPolicy           iam-user/svc_ci         45.61.164.9      AdministratorAccess (privesc!)
+14:25:02   PutBucketPolicy            iam-user/svc_ci         45.61.164.9      s3://corp-backups made public!
+14:40:00   StopLogging                iam-user/svc_ci         45.61.164.9      CloudTrail disabled (anti-forensics)`;
+
+const room9 = {
+  slug: 'aws-cloud-log-analysis',
+  title: 'AWS Cloud Log Analysis',
+  description: 'A leaked access key led to an AWS account compromise. Analyze CloudTrail to trace the privilege escalation, data access, and anti-forensics.',
+  difficulty: 'hard',
+  category: 'blue',
+  tags: ['Cloud', 'AWS', 'CloudTrail', 'IAM', 'Incident Response'],
+  icon: 'Cloud',
+  points: 95,
+  estimatedTime: 30,
+  tasks: [
+    {
+      id: 1,
+      title: 'Spot the Compromise',
+      content: `## Scenario
+
+An alert fired on your AWS account. You have a **CloudTrail** export.
+
+### CloudTrail basics
+Each event has an **eventName** (the API call), a **userIdentity** (who), and a **sourceIP**.
+
+Signs of compromise:
+- **Login without MFA** from an unusual IP
+- **CreateAccessKey / AttachUserPolicy** = persistence & privilege escalation
+- **PutBucketPolicy** making data public
+- **StopLogging** = the attacker covering tracks`,
+      artifacts: [
+        { name: 'cloudtrail.log', type: 'log', content: CLOUDTRAIL_LOG },
+      ],
+      questions: [
+        {
+          id: 'q1',
+          prompt: 'Which IAM user was compromised (logged in without MFA from an external IP)?',
+          answer: 'svc_ci',
+          points: 15,
+          hint: 'Look for ConsoleLogin with MFA=No.',
+          accept: ['svc_ci', 'iam-user/svc_ci'],
+        },
+        {
+          id: 'q2',
+          prompt: 'What is the attacker source IP?',
+          answer: '45.61.164.9',
+          points: 15,
+          hint: 'All the malicious events share one source IP.',
+        },
+        {
+          id: 'q3',
+          prompt: 'Which S3 object containing sensitive data did the attacker read? (the file name)',
+          answer: 'customers.db',
+          points: 15,
+          hint: 'GetObject on s3://corp-backups/...',
+          accept: ['customers.db', 's3://corp-backups/customers.db', 'corp-backups/customers.db'],
+        },
+      ],
+    },
+    {
+      id: 2,
+      title: 'Persistence & Anti-Forensics',
+      content: `## Trace the full attack chain
+
+Continue through the CloudTrail events to identify how the attacker **escalated privileges**, **exposed data**, and **disabled logging**.`,
+      artifacts: [
+        { name: 'cloudtrail.log', type: 'log', content: CLOUDTRAIL_LOG },
+      ],
+      questions: [
+        {
+          id: 'q4',
+          prompt: 'Which IAM policy did the attacker attach to gain full admin? (policy name)',
+          answer: 'AdministratorAccess',
+          points: 20,
+          hint: 'AttachUserPolicy event — the most powerful AWS managed policy.',
+          accept: ['administratoraccess', 'AdministratorAccess', 'admin'],
+        },
+        {
+          id: 'q5',
+          prompt: 'What eventName did the attacker use to disable CloudTrail (anti-forensics)?',
+          answer: 'StopLogging',
+          points: 20,
+          hint: 'The last event in the log.',
+          accept: ['stoplogging', 'StopLogging'],
+        },
+      ],
+    },
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// ROOM 10: Detection Engineering (Sigma)
+// ---------------------------------------------------------------------------
+const SYSMON_SAMPLE = `# Sysmon Event ID 1 (Process Creation) sample the rule must catch
+Image: C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe
+CommandLine: powershell.exe -nop -w hidden -enc SQBFAFgA
+ParentImage: C:\\Program Files\\Microsoft Office\\WINWORD.EXE`;
+
+const SIGMA_TEMPLATE = `title: Suspicious PowerShell Spawned by Office
+logsource:
+  product: windows
+  category: process_creation
+detection:
+  selection:
+    ParentImage|endswith: '\\WINWORD.EXE'
+    Image|endswith: '\\powershell.exe'
+    CommandLine|contains:
+      - '-enc'
+      - '-nop'
+      - 'hidden'
+  condition: selection
+level: high`;
+
+const room10 = {
+  slug: 'detection-engineering-sigma',
+  title: 'Detection Engineering with Sigma',
+  description: 'Step up to Tier-2. Learn how a Sigma detection rule is structured and how it maps generic detection logic to a real malicious event.',
+  difficulty: 'medium',
+  category: 'blue',
+  tags: ['Detection Engineering', 'Sigma', 'Sysmon', 'MITRE ATT&CK'],
+  icon: 'ScanSearch',
+  points: 80,
+  estimatedTime: 25,
+  tasks: [
+    {
+      id: 1,
+      title: 'Anatomy of a Sigma Rule',
+      content: `## Scenario
+
+You're a **Detection Engineer**. A common attack is **Office spawning PowerShell with an encoded command** (macro malware). You'll analyze a Sigma rule that detects it.
+
+### Sigma structure
+| Field | Purpose |
+|-------|---------|
+| \`logsource\` | Which log type the rule runs against |
+| \`detection.selection\` | The match conditions |
+| \`condition\` | How selections combine |
+| \`level\` | Severity |
+
+Review the malicious event and the Sigma rule on the right.`,
+      artifacts: [
+        { name: 'malicious_event.txt', type: 'log', content: SYSMON_SAMPLE },
+        { name: 'rule.yml', type: 'log', content: SIGMA_TEMPLATE },
+      ],
+      questions: [
+        {
+          id: 'q1',
+          prompt: 'What Sysmon Event ID does this rule detect? (process creation)',
+          answer: '1',
+          points: 15,
+          hint: 'Sysmon Event ID 1 = Process Creation.',
+          accept: ['1', 'event id 1', 'eventid 1'],
+        },
+        {
+          id: 'q2',
+          prompt: 'In the rule, which ParentImage value triggers the detection? (the .EXE)',
+          answer: 'WINWORD.EXE',
+          points: 15,
+          hint: 'ParentImage|endswith in the selection block.',
+          accept: ['winword.exe', 'WINWORD.EXE', '\\WINWORD.EXE'],
+        },
+        {
+          id: 'q3',
+          prompt: 'What severity level is assigned to this rule?',
+          answer: 'high',
+          points: 10,
+          hint: 'The "level:" field at the bottom.',
+        },
+      ],
+    },
+    {
+      id: 2,
+      title: 'Map to ATT&CK',
+      content: `## Tune & classify
+
+Good detections map to **MITRE ATT&CK** and avoid false positives.
+
+The encoded-command PowerShell technique is well-known in ATT&CK, and the CommandLine flags in the rule are the key indicators.`,
+      artifacts: [
+        { name: 'rule.yml', type: 'log', content: SIGMA_TEMPLATE },
+      ],
+      questions: [
+        {
+          id: 'q4',
+          prompt: 'Which PowerShell flag (in CommandLine) indicates a base64 EncodedCommand?',
+          answer: '-enc',
+          points: 20,
+          hint: 'One of the CommandLine|contains values; short for -EncodedCommand.',
+          accept: ['-enc', 'enc', '-encodedcommand', 'encodedcommand'],
+        },
+        {
+          id: 'q5',
+          prompt: 'What MITRE ATT&CK tactic does "Office spawning PowerShell to run code" fall under? (one word)',
+          answer: 'execution',
+          points: 20,
+          hint: 'Running attacker code on the host = this tactic (TA0002).',
+          accept: ['execution', 'ta0002'],
+        },
+      ],
+    },
+  ],
+};
+
+const rooms = [room1, room2, room3, room4, room5, room6, room7, room8, room9, room10];
 
 // Assign stable numeric ids + total question count
 rooms.forEach((r, i) => {

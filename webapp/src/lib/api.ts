@@ -149,6 +149,11 @@ class ApiService {
     });
   }
 
+  // Learning paths
+  async getPaths() {
+    return this.request<any[]>('/api/paths');
+  }
+
   // Achievements
   async getAchievements() {
     return this.request<any[]>('/api/achievements');

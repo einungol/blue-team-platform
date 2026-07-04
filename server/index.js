@@ -7,6 +7,7 @@ const initSqlJs = require('sql.js');
 const fs = require('fs');
 const roomsContent = require('./content/rooms');
 const interactiveLabs = require('./content/interactive-labs');
+const learningPaths = require('./content/paths');
 
 const app = express();
 const server = http.createServer(app);
@@ -670,6 +671,77 @@ app.post('/api/interactive/:id/flag', auth, (req, res) => {
     points: lab.points,
     newlyEarned: newlyEarned.map((a) => ({ name: a.name, icon: a.icon, description: a.description, badge_type: a.badge_type })),
   });
+});
+
+// ============ LEARNING PATHS ============
+// Resolve a step (room or lab) to a display object with completion status.
+function resolveStep(step, roomSolved, labSolved) {
+  if (step.kind === 'room') {
+    const room = roomsContent.getRoomById(step.ref);
+    if (!room) return null;
+    return {
+      kind: 'room',
+      id: room.id,
+      href: `/rooms/${room.id}`,
+      title: room.title,
+      difficulty: room.difficulty,
+      points: room.totalPoints,
+      tags: room.tags,
+      completed: (roomSolved[room.id] || 0) >= room.totalQuestions,
+      progress: room.totalQuestions
+        ? Math.round(((roomSolved[room.id] || 0) / room.totalQuestions) * 100)
+        : 0,
+    };
+  }
+  const lab = interactiveLabs.getLabById(step.ref);
+  if (!lab) return null;
+  return {
+    kind: 'lab',
+    id: lab.id,
+    href: `/interactive/${lab.id}`,
+    title: lab.title,
+    difficulty: lab.difficulty,
+    points: lab.points,
+    tags: lab.tags,
+    completed: !!labSolved[lab.id],
+    progress: labSolved[lab.id] ? 100 : 0,
+  };
+}
+
+app.get('/api/paths', (req, res) => {
+  // Build lookup of the user's solved counts (rooms) and completed labs.
+  const token = req.headers.authorization?.split(' ')[1];
+  let userId = null;
+  if (token) { try { userId = jwt.verify(token, JWT_SECRET).id; } catch { /* ignore */ } }
+
+  const roomSolved = {};   // roomId -> solved question count
+  const labSolved = {};    // labId -> boolean
+  if (userId) {
+    query('SELECT room_id, COUNT(*) as c FROM room_progress WHERE user_id = ? GROUP BY room_id', [userId])
+      .forEach((r) => {
+        if (r.room_id >= 1000) labSolved[r.room_id - 1000] = true;
+        else roomSolved[r.room_id] = r.c;
+      });
+  }
+
+  const result = learningPaths.paths.map((p) => {
+    const steps = p.steps.map((s) => resolveStep(s, roomSolved, labSolved)).filter(Boolean);
+    const done = steps.filter((s) => s.completed).length;
+    return {
+      id: p.id,
+      slug: p.slug,
+      title: p.title,
+      description: p.description,
+      icon: p.icon,
+      level: p.level,
+      totalSteps: steps.length,
+      completedSteps: done,
+      progress: steps.length ? Math.round((done / steps.length) * 100) : 0,
+      steps,
+    };
+  });
+
+  res.json(result);
 });
 
 app.get('/api/users/leaderboard', (req, res) => {

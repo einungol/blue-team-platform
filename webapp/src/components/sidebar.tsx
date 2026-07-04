@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   Shield,
   LayoutDashboard,
+  Route,
   DoorOpen,
   SquareTerminal,
   Trophy,
@@ -17,6 +18,7 @@ import {
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/paths', icon: Route, label: 'Learning Paths' },
   { href: '/rooms', icon: DoorOpen, label: 'Rooms' },
   { href: '/interactive', icon: SquareTerminal, label: 'Terminal Labs' },
   { href: '/achievements', icon: Award, label: 'Achievements' },

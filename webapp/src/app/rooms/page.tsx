@@ -16,6 +16,10 @@ import {
   Search,
   Cpu,
   Bug,
+  Network,
+  ShieldAlert,
+  Cloud,
+  ScanSearch,
   type LucideIcon,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -29,6 +33,10 @@ const iconMap: Record<string, LucideIcon> = {
   DoorOpen,
   Cpu,
   Bug,
+  Network,
+  ShieldAlert,
+  Cloud,
+  ScanSearch,
 };
 
 const difficultyStyles: Record<string, string> = {

@@ -13,19 +13,24 @@ import {
   Zap,
   DoorOpen,
   Award,
+  Route,
   ScrollText,
   Mail,
   Radio,
   Cpu,
   Bug,
   Search,
+  Network,
+  ShieldAlert,
+  Cloud,
+  ScanSearch,
   type LucideIcon,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { RoomSummary } from '@/types';
 
 const iconMap: Record<string, LucideIcon> = {
-  ScrollText, Mail, Radio, Cpu, Bug, Search, DoorOpen,
+  ScrollText, Mail, Radio, Cpu, Bug, Search, DoorOpen, Network, ShieldAlert, Cloud, ScanSearch,
 };
 
 export default function DashboardPage() {
@@ -123,6 +128,24 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Learning paths banner */}
+        <Link href="/paths">
+          <div className="mb-6 flex items-center justify-between rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 to-zinc-900/50 p-5 transition-colors hover:border-emerald-500/60">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400">
+                <Route className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-white">Follow a Learning Path</h3>
+                <p className="text-sm text-zinc-400">
+                  Structured routes like &quot;SOC Analyst Tier 1&quot; — rooms and labs in the right order.
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="h-5 w-5 text-emerald-400" />
+          </div>
+        </Link>
 
         {/* Rooms */}
         <div className="mb-6">
