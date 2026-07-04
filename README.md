@@ -4,6 +4,11 @@
 >
 > Built as a full-stack project to demonstrate both **security domain knowledge** and **software engineering** capability.
 
+### 🌐 [**► Live Demo**](https://blue-team-platform-ecru.vercel.app) &nbsp;·&nbsp; [Source](https://github.com/einungol/blue-team-platform)
+
+> Try it: register an account → open **Terminal Labs** → type `ls`, then `grep /login access.log`.
+> _(Backend runs on Render's free tier and may take ~30s to wake on first request.)_
+
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript)
 ![Node.js](https://img.shields.io/badge/Node.js-Express-339933?logo=node.js)
