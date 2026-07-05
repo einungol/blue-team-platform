@@ -1193,7 +1193,463 @@ The encoded-command PowerShell technique is well-known in ATT&CK, and the Comman
   ],
 };
 
-const rooms = [room1, room2, room3, room4, room5, room6, room7, room8, room9, room10];
+// ---------------------------------------------------------------------------
+// ROOM 11: SOC Alert Triage (Tier 1 core skill)
+// ---------------------------------------------------------------------------
+const ALERT_QUEUE = `# SIEM Alert Queue (oldest first)
+ID     Time   Severity  Rule                                 Host      User      SourceIP        Status
+A-1001 09:02  low       Multiple failed logons (5)            HR01      mwallace  10.0.4.22       new
+A-1002 09:05  medium    PowerShell EncodedCommand            FIN02     jbrown    10.0.4.31       new
+A-1003 09:06  high      Outbound to known-bad IP (TI match)  FIN02     jbrown    185.220.101.42  new
+A-1004 09:09  info      User connected to VPN                REMOTE    ssmith    203.0.113.9     new
+A-1005 09:10  low       Windows Defender quarantined EICAR   IT03      admin     10.0.4.9        new
+A-1006 09:12  high      Impossible travel (TH->RU in 5 min)  MAIL      psuriya   91.240.118.5    new
+A-1007 09:15  medium    New admin account created            DC01      SYSTEM    10.0.4.31       new`;
+
+const ALERT_CONTEXT = `# Enrichment notes (from the analyst's tools)
+- A-1001: mwallace fat-fingered password, then logged in fine. Internal IP. Baseline: normal.
+- A-1002 + A-1003 + A-1007: all tie to host FIN02 / user jbrown / IP 10.0.4.31 within 10 min:
+    encoded PowerShell -> beacon to 185.220.101.42 (Cobalt Strike TI hit) -> new admin on DC01.
+- A-1004: ssmith is a known remote employee; VPN login expected. Informational.
+- A-1005: EICAR is the standard AV *test* file, not real malware. Defender already quarantined it.
+- A-1006: psuriya logged in from Thailand then Russia (91.240.118.5) 5 min apart = impossible travel.`;
+
+const room11 = {
+  slug: 'soc-alert-triage',
+  title: 'SOC Alert Triage',
+  description: 'The core Tier-1 skill: work an alert queue. Decide what to escalate, what to close as false positive, and how to prioritize when everything says "new".',
+  difficulty: 'easy',
+  category: 'blue',
+  tags: ['SOC', 'Alert Triage', 'Tier 1', 'Prioritization', 'Escalation'],
+  icon: 'ListChecks',
+  points: 70,
+  estimatedTime: 20,
+  tasks: [
+    {
+      id: 1,
+      title: 'Work the Queue',
+      content: `## Scenario
+
+You just started your shift. Seven alerts are sitting in the queue, all marked
+**new**. A Tier-1 analyst's job is to **triage**: quickly separate real threats
+from noise, prioritize, and escalate what matters.
+
+### Triage mindset
+- **Severity is a hint, not the truth** — a "low" can be real, a "high" can be a false positive.
+- **Correlate** — alerts that share a host/user/IP in a short window are often *one* incident.
+- **Know your test artifacts** — EICAR is a harmless AV test file, not malware.
+- **Escalate** confirmed malicious activity to Tier-2 / IR; **close** false positives with a note.`,
+      artifacts: [
+        { name: 'alert_queue.txt', type: 'log', content: ALERT_QUEUE },
+        { name: 'enrichment_notes.txt', type: 'log', content: ALERT_CONTEXT },
+      ],
+      questions: [
+        {
+          id: 'q1',
+          prompt: 'Which alert should be CLOSED as a false positive because it is a standard AV test file? (alert ID, e.g. A-1000)',
+          answer: 'A-1005',
+          points: 10,
+          hint: 'EICAR is the industry-standard antivirus *test* string — harmless.',
+          accept: ['a-1005', 'A-1005', '1005'],
+        },
+        {
+          id: 'q2',
+          prompt: 'Three alerts are actually ONE incident (same host/user/IP chain). Which HOST is compromised?',
+          answer: 'FIN02',
+          points: 15,
+          hint: 'A-1002, A-1003, and A-1007 all trace to the same host via user jbrown / 10.0.4.31.',
+          accept: ['fin02', 'FIN02'],
+        },
+        {
+          id: 'q3',
+          prompt: 'Which single alert is the HIGHEST priority to escalate (confirmed C2 to a known-bad IP)?',
+          answer: 'A-1003',
+          points: 15,
+          hint: 'Outbound to a threat-intel-matched Cobalt Strike IP = active C2.',
+          accept: ['a-1003', 'A-1003', '1003'],
+        },
+      ],
+    },
+    {
+      id: 2,
+      title: 'Escalate Correctly',
+      content: `## Decisions
+
+Now finalize your triage. A good analyst can justify **why** each alert is
+escalated or closed — that reasoning is what gets documented in the ticket.`,
+      artifacts: [
+        { name: 'alert_queue.txt', type: 'log', content: ALERT_QUEUE },
+        { name: 'enrichment_notes.txt', type: 'log', content: ALERT_CONTEXT },
+      ],
+      questions: [
+        {
+          id: 'q4',
+          prompt: 'A-1006 shows a login from Thailand then Russia 5 minutes apart. What is this detection called? (two words)',
+          answer: 'impossible travel',
+          points: 15,
+          hint: 'A user cannot physically be in two distant countries within 5 minutes.',
+          accept: ['impossible travel', 'impossibletravel'],
+        },
+        {
+          id: 'q5',
+          prompt: 'Which LOW-severity alert (A-1001) is a genuine false positive — a user who mistyped their password?',
+          answer: 'A-1001',
+          points: 15,
+          hint: 'The enrichment note says mwallace fat-fingered the password then logged in fine.',
+          accept: ['a-1001', 'A-1001', '1001'],
+        },
+      ],
+    },
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// ROOM 12: Windows Event Log Fundamentals (Tier 1 foundation)
+// ---------------------------------------------------------------------------
+const EVENTID_LOG = `EventID  Meaning                              LogonType / Detail
+4624     Successful logon                     Type 2=interactive, 3=network, 10=RemoteInteractive(RDP)
+4625     Failed logon                         (status/sub-status shows reason)
+4634     Logoff
+4648     Logon using explicit credentials     (runas / lateral movement hint)
+4672     Special privileges assigned to logon (admin-equivalent logon)
+4688     A new process was created            (NewProcessName + CommandLine)
+4720     A user account was created
+4722     A user account was enabled
+4728     Member added to a security-enabled global group
+4732     Member added to a security-enabled local group (e.g. Administrators)
+4740     A user account was locked out
+7045     A new service was installed          (System log)`;
+
+const EVENT_SAMPLE = `Time   EventID  Account   Detail
+10:00   4625    admin     LogonType 10, status 0xC000006A (bad password)
+10:01   4625    admin     LogonType 10, status 0xC000006A
+10:02   4624    admin     LogonType 10  (SUCCESS from same source)
+10:02   4672    admin     Special privileges assigned
+10:03   4688    admin     NewProcessName: cmd.exe  CommandLine: cmd /c net user
+10:04   4720    SYSTEM    New account created: "helpdesk_svc"
+10:04   4732    SYSTEM    "helpdesk_svc" added to Administrators`;
+
+const room12 = {
+  slug: 'windows-event-log-fundamentals',
+  title: 'Windows Event Log Fundamentals',
+  description: 'Master the Windows Security Event IDs every SOC analyst must know cold. Read a real logon-to-privilege-escalation sequence and identify each step.',
+  difficulty: 'easy',
+  category: 'blue',
+  tags: ['Windows', 'Event Logs', 'Tier 1', 'Fundamentals', 'SIEM'],
+  icon: 'FileSearch',
+  points: 65,
+  estimatedTime: 20,
+  tasks: [
+    {
+      id: 1,
+      title: 'Learn the Event IDs',
+      content: `## Why this matters
+
+SOC analysts spend a huge chunk of their day reading Windows logs. Knowing the
+**key Event IDs** by heart is non-negotiable — it's asked in almost every SOC
+interview.
+
+Study the reference table on the right, then answer.
+
+> **Logon Types** to remember: **2** = interactive (at the keyboard), **3** =
+> network (SMB/shares), **10** = RemoteInteractive (**RDP**).`,
+      artifacts: [
+        { name: 'event_id_reference.txt', type: 'log', content: EVENTID_LOG },
+      ],
+      questions: [
+        {
+          id: 'q1',
+          prompt: 'What Event ID means a FAILED logon?',
+          answer: '4625',
+          points: 10,
+          hint: 'Successful = 4624, failed = one more than that.',
+        },
+        {
+          id: 'q2',
+          prompt: 'Which LogonType number indicates an RDP (RemoteInteractive) logon?',
+          answer: '10',
+          points: 10,
+          hint: 'Type 2 = interactive, 3 = network, 10 = RDP.',
+          accept: ['10', 'type 10', 'logontype 10'],
+        },
+        {
+          id: 'q3',
+          prompt: 'What Event ID records that a NEW USER ACCOUNT was created?',
+          answer: '4720',
+          points: 10,
+          hint: 'It is in the 47xx range — account creation.',
+        },
+      ],
+    },
+    {
+      id: 2,
+      title: 'Read the Sequence',
+      content: `## Put it together
+
+The sample on the right is a real attack sequence in Windows events. Read it
+top to bottom and reconstruct what happened — from initial access to privilege
+escalation and persistence.`,
+      artifacts: [
+        { name: 'event_id_reference.txt', type: 'log', content: EVENTID_LOG },
+        { name: 'sequence.txt', type: 'log', content: EVENT_SAMPLE },
+      ],
+      questions: [
+        {
+          id: 'q4',
+          prompt: 'The sequence starts with two 4625 then a 4624 over LogonType 10. What technique is this? (two words)',
+          answer: 'brute force',
+          points: 15,
+          hint: 'Repeated failed RDP logons followed by a success.',
+          accept: ['brute force', 'bruteforce', 'rdp brute force'],
+        },
+        {
+          id: 'q5',
+          prompt: 'What is the name of the backdoor account the attacker created and added to Administrators?',
+          answer: 'helpdesk_svc',
+          points: 20,
+          hint: 'See the 4720 (created) then 4732 (added to Administrators) events.',
+        },
+      ],
+    },
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// ROOM 13: Threat Intelligence & IOC Enrichment (Tier 2)
+// ---------------------------------------------------------------------------
+const IOC_LIST = `# Indicators pulled from an incident
+Type     Indicator                                          Notes
+IP       185.220.101.42                                     seen in outbound beacon
+Domain   cdn.update-sync[.]net                              resolved by infected host
+Hash     9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd  dropped file (SHA256, truncated shown)
+URL      hxxp://185.220.101.42/gate.php                     beacon callback
+Email    billing@paypa1-secure[.]com                        phishing sender`;
+
+const TI_ENRICHMENT = `# Threat-intel platform results (simulated OSINT / VT / MISP)
+185.220.101.42
+  - VirusTotal: 14/89 vendors flag malicious
+  - Category: Cobalt Strike C2
+  - ASN: known bulletproof hosting
+  - First seen: 12 days ago; still active
+  - Linked campaign: "SyncCrypt" (financially motivated)
+
+cdn.update-sync[.]net
+  - Registered: 14 days ago (newly registered domain = suspicious)
+  - Resolves to: 185.220.101.42 (same C2 IP)
+  - Certificate: self-signed
+
+Hash 9f86d081...
+  - VT: 52/72 detections, family: Cobalt Strike beacon
+  - First submitted: from Thailand, 10 days ago
+
+Actor attribution note:
+  - TTPs (Kerberoasting -> Cobalt Strike -> ransomware) match the "SyncCrypt" group,
+    a financially motivated (not nation-state) actor.`;
+
+const room13 = {
+  slug: 'threat-intel-ioc-enrichment',
+  title: 'Threat Intelligence & IOC Enrichment',
+  description: 'Step into Tier-2 work. Take raw IOCs from an incident, enrich them with threat intelligence, pivot to find related infrastructure, and attribute the campaign.',
+  difficulty: 'medium',
+  category: 'blue',
+  tags: ['Threat Intelligence', 'IOC', 'Enrichment', 'Tier 2', 'OSINT'],
+  icon: 'Radar',
+  points: 85,
+  estimatedTime: 25,
+  tasks: [
+    {
+      id: 1,
+      title: 'Enrich the IOCs',
+      content: `## Scenario
+
+Tier-1 handed you a confirmed incident with a list of raw **IOCs** (Indicators of
+Compromise). Your Tier-2 job: **enrich** them with threat intelligence to
+understand the threat, then **pivot** to find related infrastructure.
+
+### Enrichment tools (real world)
+- **VirusTotal** — reputation of hashes/IPs/domains/URLs
+- **MISP / OpenCTI** — threat-intel platforms
+- **Passive DNS / WHOIS** — domain age, resolution history
+- **Shodan / urlscan.io** — infrastructure
+
+> **Newly registered domains (NRDs)** and **self-signed certs** are classic
+> malicious-infra tells.`,
+      artifacts: [
+        { name: 'iocs.txt', type: 'log', content: IOC_LIST },
+        { name: 'ti_enrichment.txt', type: 'log', content: TI_ENRICHMENT },
+      ],
+      questions: [
+        {
+          id: 'q1',
+          prompt: 'What malware family does the C2 IP and the dropped hash belong to? (two words)',
+          answer: 'cobalt strike',
+          points: 20,
+          hint: 'Both VirusTotal results name the same red-team framework abused by attackers.',
+          accept: ['cobalt strike', 'cobaltstrike', 'cobalt-strike'],
+        },
+        {
+          id: 'q2',
+          prompt: 'The malicious domain resolves to which IP address? (pivoting IOCs)',
+          answer: '185.220.101.42',
+          points: 15,
+          hint: 'The enrichment shows cdn.update-sync[.]net resolves to the same C2 IP.',
+        },
+        {
+          id: 'q3',
+          prompt: 'What property of the domain (age) makes it suspicious? (two words, e.g. "self signed")',
+          answer: 'newly registered',
+          points: 15,
+          hint: 'Registered 14 days ago — a newly ______ domain (NRD).',
+          accept: ['newly registered', 'new domain', 'recently registered', 'nrd'],
+        },
+      ],
+    },
+    {
+      id: 2,
+      title: 'Attribute the Campaign',
+      content: `## Attribution
+
+With enriched IOCs and observed TTPs, you can attribute the activity to a known
+campaign or actor — and judge their **motivation** (which shapes the response).`,
+      artifacts: [
+        { name: 'ti_enrichment.txt', type: 'log', content: TI_ENRICHMENT },
+      ],
+      questions: [
+        {
+          id: 'q4',
+          prompt: 'What is the name of the campaign/actor group these TTPs match?',
+          answer: 'SyncCrypt',
+          points: 20,
+          hint: 'Named in both the IP campaign link and the attribution note.',
+          accept: ['synccrypt', 'SyncCrypt'],
+        },
+        {
+          id: 'q5',
+          prompt: 'What is the actor\'s motivation: financially motivated or nation-state?',
+          answer: 'financially motivated',
+          points: 15,
+          hint: 'The attribution note states it explicitly.',
+          accept: ['financially motivated', 'financial', 'financially-motivated', 'money'],
+        },
+      ],
+    },
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// ROOM 14: Business Email Compromise (Tier 2)
+// ---------------------------------------------------------------------------
+const BEC_HEADERS = `From: "CEO Somchai Jaidee" <somchai.jaidee@company-th.com>
+Reply-To: <s.jaidee.finance@gmail.com>
+Return-Path: <bounce@mailer-relay-42.xyz>
+Received: from mailer-relay-42.xyz (185.53.178.9)
+Authentication-Results: spf=softfail; dkim=none; dmarc=fail
+To: <finance.manager@company-th.com>
+Subject: Urgent - Confidential Wire Transfer Needed Today
+Date: Fri, 04 Jul 2026 14:22:00 +0700
+
+Hi, I'm in a meeting and can't talk. I need you to process an urgent wire
+transfer of THB 2,400,000 to a new vendor today. Keep this confidential until
+it's done. Send confirmation to my personal email once complete.
+
+Account: 555-1-234567  Bank: [redacted]
+Thanks, Somchai`;
+
+const BEC_CONTEXT = `# Investigation context
+- The real CEO's email is somchai.jaidee@company-th.com (display name matches).
+- BUT: Reply-To points to a Gmail address, NOT the corporate domain.
+- Return-Path / Received show the mail actually came from mailer-relay-42.xyz (185.53.178.9),
+  not company-th.com mail servers.
+- SPF softfail, DKIM none, DMARC fail — the domain was spoofed in the display name only.
+- No malware, no links, no attachment. Pure social engineering.
+- Hallmarks: urgency, secrecy, authority (CEO), request to change payment details,
+  redirect confirmation to a personal email.`;
+
+const room14 = {
+  slug: 'business-email-compromise',
+  title: 'Business Email Compromise (BEC)',
+  description: 'Investigate a CEO-fraud wire-transfer request. No malware, no links — just social engineering. Learn to spot BEC through header analysis and behavioral red flags.',
+  difficulty: 'medium',
+  category: 'blue',
+  tags: ['Phishing', 'BEC', 'Social Engineering', 'Email', 'Tier 2'],
+  icon: 'MailWarning',
+  points: 80,
+  estimatedTime: 22,
+  tasks: [
+    {
+      id: 1,
+      title: 'Header Analysis',
+      content: `## Scenario
+
+The finance manager forwarded an urgent "CEO" email asking for a **THB 2.4M wire
+transfer**. There's no malware and no link — this is **Business Email Compromise
+(BEC)**, pure social engineering, and it's one of the costliest attack types.
+
+Analyze the headers on the right. In BEC the **display name** often looks right
+while the **actual sender / Reply-To** does not.`,
+      artifacts: [
+        { name: 'ceo_email.eml', type: 'email', content: BEC_HEADERS },
+        { name: 'investigation_notes.txt', type: 'log', content: BEC_CONTEXT },
+      ],
+      questions: [
+        {
+          id: 'q1',
+          prompt: 'The Reply-To points to what kind of address that a real CEO would not use for corporate wire requests? (the email domain, e.g. example.com)',
+          answer: 'gmail.com',
+          points: 15,
+          hint: 'Reply-To is s.jaidee.finance@______ — a free personal mail provider.',
+          accept: ['gmail.com', 'gmail'],
+        },
+        {
+          id: 'q2',
+          prompt: 'Did DMARC pass or fail?',
+          answer: 'fail',
+          points: 15,
+          hint: 'Check Authentication-Results.',
+        },
+        {
+          id: 'q3',
+          prompt: 'What is the sending IP the mail actually originated from (per Received/Return-Path)?',
+          answer: '185.53.178.9',
+          points: 15,
+          hint: 'The Received header shows mailer-relay-42.xyz (IP).',
+        },
+      ],
+    },
+    {
+      id: 2,
+      title: 'Behavioral Red Flags',
+      content: `## Beyond the headers
+
+BEC succeeds through **psychology**, not malware. Recognizing the behavioral
+pattern is what stops the wire from going out.`,
+      artifacts: [
+        { name: 'ceo_email.eml', type: 'email', content: BEC_HEADERS },
+        { name: 'investigation_notes.txt', type: 'log', content: BEC_CONTEXT },
+      ],
+      questions: [
+        {
+          id: 'q4',
+          prompt: 'What attack category is this? (three words)',
+          answer: 'business email compromise',
+          points: 20,
+          hint: 'CEO fraud requesting a wire transfer = B__ E__ C__.',
+          accept: ['business email compromise', 'bec', 'ceo fraud'],
+        },
+        {
+          id: 'q5',
+          prompt: 'What is the correct response before any money moves: verify via a separate trusted channel, or reply to the email? (answer "verify" or "reply")',
+          answer: 'verify',
+          points: 15,
+          hint: 'Never trust the email itself — call the CEO on a known number (out-of-band verification).',
+          accept: ['verify', 'out of band', 'out-of-band', 'call', 'separate channel'],
+        },
+      ],
+    },
+  ],
+};
+
+const rooms = [room1, room2, room3, room4, room5, room6, room7, room8, room9, room10, room11, room12, room13, room14];
 
 // Assign stable numeric ids + total question count
 rooms.forEach((r, i) => {

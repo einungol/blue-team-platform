@@ -24,6 +24,10 @@ import {
   ShieldAlert,
   Cloud,
   ScanSearch,
+  ListChecks,
+  FileSearch,
+  Radar,
+  MailWarning,
   type LucideIcon,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,6 +35,7 @@ import type { RoomSummary } from '@/types';
 
 const iconMap: Record<string, LucideIcon> = {
   ScrollText, Mail, Radio, Cpu, Bug, Search, DoorOpen, Network, ShieldAlert, Cloud, ScanSearch,
+  ListChecks, FileSearch, Radar, MailWarning,
 };
 
 export default function DashboardPage() {

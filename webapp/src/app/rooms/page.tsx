@@ -20,6 +20,10 @@ import {
   ShieldAlert,
   Cloud,
   ScanSearch,
+  ListChecks,
+  FileSearch,
+  Radar,
+  MailWarning,
   type LucideIcon,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -37,6 +41,10 @@ const iconMap: Record<string, LucideIcon> = {
   ShieldAlert,
   Cloud,
   ScanSearch,
+  ListChecks,
+  FileSearch,
+  Radar,
+  MailWarning,
 };
 
 const difficultyStyles: Record<string, string> = {
